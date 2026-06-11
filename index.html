@@ -1,13 +1,129 @@
-﻿<!DOCTYPE html>
-<html>
+<!DOCTYPE html>
+<html lang="es">
 <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analizador Cuenta Puente</title>
-
-    <!-- Esta es la línea directa que redirige automáticamente a Default.aspx -->
-    <meta http-equiv="refresh" content="0; url=Default.aspx" />
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card-shadow { box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: none; }
+        
+        /* Colores para las filas de la tabla (los usaremos en el Paso 4) */
+        .fila-verde { background-color: #d1e7dd !important; }
+        .fila-amarilla { background-color: #fff3cd !important; }
+        .fila-roja { background-color: #f8d7da !important; font-weight: 600; }
+        
+        .monto-debito { color: #0d6efd; font-weight: bold; }
+        .monto-credito { color: #dc3545; font-weight: bold; }
+    </style>
 </head>
 <body>
-    <p>Redirigiendo al sistema...</p>
+
+<div class="container py-4">
+    <!-- Encabezado y Carga de Archivo -->
+    <div class="card card-shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0"> Analizador de Cuenta Puente (Conciliación)</h3>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">Sube el archivo <strong>.txt</strong> exportado desde Open 4 Business. El sistema emparejará automáticamente Débitos contra Créditos.</p>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <input type="file" id="fileInput" class="form-control" accept=".txt">
+                </div>
+                <div class="col-md-4">
+                    <button id="btnAnalizar" class="btn btn-primary w-100" disabled>🔎 Analizar Archivo</button>
+                </div>
+            </div>
+            <div id="alertContainer" class="mt-3"></div>
+        </div>
+    </div>
+
+    <!-- Sección de Resultados (Oculta al inicio) -->
+    <div id="resultados" style="display: none;">
+        
+        <!-- Tarjetas de Resumen -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card text-white bg-success card-shadow text-center py-3">
+                    <h6 class="mb-1">TOTAL DÉBITOS</h6>
+                    <h2 class="mb-0" id="lblDebitos">0.00</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white bg-danger card-shadow text-center py-3">
+                    <h6 class="mb-1">TOTAL CRÉDITOS</h6>
+                    <h2 class="mb-0" id="lblCreditos">0.00</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white bg-secondary card-shadow text-center py-3" id="cardDiferencia">
+                    <h6 class="mb-1">DIFERENCIA GLOBAL</h6>
+                    <h2 class="mb-0" id="lblDiferencia">0.00</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Resultados -->
+        <div class="card card-shadow">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Emparejamiento Débitos vs Créditos (<span id="lblTotalParejas">0</span> parejas)</h5>
+                <span class="badge bg-info">📊 Orden: Monto Ascendente</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="tablaParejas">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fecha Débito</th>
+                                <th>Asiento Débito</th>
+                                <th>Descripción Débito</th>
+                                <th class="text-end">Monto Débito</th>
+                                <th class="text-end">Diferencia</th>
+                                <th class="text-end">Monto Crédito</th>
+                                <th>Descripción Crédito</th>
+                                <th>Asiento Crédito</th>
+                                <th>Fecha Crédito</th>
+                                <th class="text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyParejas">
+                            <!-- Aquí JavaScript inyectará las filas en el Paso 4 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Nuestro JavaScript (Irá creciendo en los próximos pasos) -->
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const btnAnalizar = document.getElementById('btnAnalizar');
+    const alertContainer = document.getElementById('alertContainer');
+    const resultadosDiv = document.getElementById('resultados');
+
+    // Habilitar el botón cuando se selecciona un archivo
+    fileInput.addEventListener('change', () => {
+        btnAnalizar.disabled = !fileInput.files.length;
+        alertContainer.innerHTML = '';
+    });
+
+    // Evento del botón (Por ahora solo una prueba)
+    btnAnalizar.addEventListener('click', () => {
+        const file = fileInput.files[0];
+        if (file) {
+            alertContainer.innerHTML = `<div class="alert alert-info">✅ Archivo seleccionado: <strong>${file.name}</strong>. (En el Paso 2 programaremos la lectura real).</div>`;
+            resultadosDiv.style.display = 'block'; // Mostrar la tabla vacía para probar el diseño
+        }
+    });
+</script>
+
 </body>
 </html>
