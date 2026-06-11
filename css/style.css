@@ -1,1 +1,64 @@
+/* css/style.css - Estilos personalizados del Analizador */
 
+/* Fondo general de la página */
+body { 
+    background-color: #f8f9fa; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Sombra suave para las tarjetas */
+.card-shadow { 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+    border: none; 
+    border-radius: 10px;
+}
+
+/* ===== COLORES DE FILAS DE LA TABLA ===== */
+.fila-verde { 
+    background-color: #d1e7dd !important; 
+}
+
+.fila-amarilla { 
+    background-color: #fff3cd !important; 
+}
+
+.fila-roja { 
+    background-color: #f8d7da !important; 
+    font-weight: 600; 
+}
+
+/* ===== COLORES DE MONTOS ===== */
+.monto-debito { 
+    color: #0d6efd; 
+    font-weight: bold; 
+}
+
+.monto-credito { 
+    color: #dc3545; 
+    font-weight: bold; 
+}
+
+/* ===== TOOLTIPS PERSONALIZADOS ===== */
+.tooltip-inner { 
+    max-width: 350px; 
+    text-align: left; 
+    background-color: #343a40; 
+    padding: 12px;
+    border-radius: 8px;
+}
+
+/* ===== ENCABEZADOS DE TARJETAS ===== */
+.card-header h3 {
+    font-weight: 600;
+}
+
+/* ===== RESPONSIVE: Ajustes para móviles ===== */
+@media (max-width: 768px) {
+    .card-body h2 {
+        font-size: 1.5rem;
+    }
+    
+    table {
+        font-size: 0.85rem;
+    }
+}
