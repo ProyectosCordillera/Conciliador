@@ -3,19 +3,28 @@
 // Col 5: Fecha | Col 6: Asiento | Col 7: Descripción | Col 9: Débito | Col 10: Crédito
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ============================================
+    // DECLARACIÓN DE ELEMENTOS DEL DOM
+    // ============================================
     const fileInput = document.getElementById('fileInput');
     const btnAnalizar = document.getElementById('btnAnalizar');
+    const btnLimpiar = document.getElementById('btnLimpiar');
     const alertContainer = document.getElementById('alertContainer');
     const resultadosDiv = document.getElementById('resultados');
     const tbodyParejas = document.getElementById('tbodyParejas');
 
-    // Habilitar botón cuando se selecciona archivo
+    // ============================================
+    // EVENTO: Seleccionar archivo
+    // ============================================
     fileInput.addEventListener('change', () => {
         btnAnalizar.disabled = !fileInput.files.length;
         alertContainer.innerHTML = '';
         resultadosDiv.style.display = 'none';
     });
 
+    // ============================================
+    // EVENTO: Botón Analizar
+    // ============================================
     btnAnalizar.addEventListener('click', () => {
         const file = fileInput.files[0];
         if (!file) return;
@@ -33,11 +42,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const parejas = emparejarDebitosCreditos(movimientos);
                 renderizarResultados(movimientos, parejas);
+                
+                // Mostrar botón de limpiar DESPUÉS de analizar
+                btnLimpiar.style.display = 'block';
             } catch (error) {
                 mostrarAlerta(`❌ Error al procesar: ${error.message}`, 'danger');
             }
         };
         reader.readAsText(file);
+    });
+
+    // ============================================
+    // EVENTO: Botón Limpiar
+    // ============================================
+    btnLimpiar.addEventListener('click', () => {
+        // Resetear el input de archivo
+        fileInput.value = '';
+        
+        // Ocultar resultados
+        resultadosDiv.style.display = 'none';
+        
+        // Limpiar tabla
+        tbodyParejas.innerHTML = '';
+        
+        // Limpiar alertas
+        alertContainer.innerHTML = '';
+        
+        // Resetear contadores
+        document.getElementById('lblDebitos').textContent = '0.00';
+        document.getElementById('lblCreditos').textContent = '0.00';
+        document.getElementById('lblDiferencia').textContent = '0.00';
+        document.getElementById('lblTotalParejas').textContent = '0';
+        
+        // Resetear color de tarjeta de diferencia
+        const cardDif = document.getElementById('cardDiferencia');
+        cardDif.className = 'card text-white bg-secondary card-shadow text-center py-3';
+        
+        // Deshabilitar botón de analizar
+        btnAnalizar.disabled = true;
+        
+        // Ocultar botón de limpiar
+        btnLimpiar.style.display = 'none';
     });
 
     // ============================================
@@ -141,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     d, c: mejorC, diff: d.debito - mejorC.credito, 
                     estado: '⚠️ Posible coincidencia', 
                     color: 'amarilla',
-                    tooltip: `Diferencia: ${(d.debito - mejorC.credito).toFixed(2)}\nDébito: ${d.debito.toFixed(2)}\nCrédito: ${mejorC.credito.toFixed(2)}`
+                    tooltip: `Diferencia: ${(d.debito - mejorC.credito).toFixed(2)}<br>Débito: ${d.debito.toFixed(2)}<br>Crédito: ${mejorC.credito.toFixed(2)}`
                 });
                 d.emparejado = true;
                 mejorC.emparejado = true;
@@ -154,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 d, c: null, diff: d.debito, 
                 estado: '❌ Sin pareja (Débito)', 
                 color: 'roja',
-                tooltip: `Débito huérfano: ${d.debito.toFixed(2)}\nAsiento: ${d.asiento}\nDescripción: ${d.descripcion}\nAcción: Buscar crédito por este monto`
+                tooltip: `Débito huérfano: ${d.debito.toFixed(2)}<br>Asiento: ${d.asiento}<br>Descripción: ${d.descripcion}<br>Acción: Buscar crédito por este monto`
             });
         });
 
@@ -164,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 d: null, c, diff: -c.credito, 
                 estado: '❌ Sin pareja (Crédito)', 
                 color: 'roja',
-                tooltip: `Crédito huérfano: ${c.credito.toFixed(2)}\nAsiento: ${c.asiento}\nDescripción: ${c.descripcion}\nAcción: Buscar débito por este monto`
+                tooltip: `Crédito huérfano: ${c.credito.toFixed(2)}<br>Asiento: ${c.asiento}<br>Descripción: ${c.descripcion}<br>Acción: Buscar débito por este monto`
             });
         });
 
@@ -227,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="text-center">
                     <span class="badge ${p.color === 'verde' ? 'bg-success' : (p.color === 'amarilla' ? 'bg-warning text-dark' : 'bg-danger')}" 
                           data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" 
-                          title="${p.tooltip.replace(/\n/g, '<br>')}">
+                          title="${p.tooltip}">
                         ${p.estado}
                     </span>
                 </td>
