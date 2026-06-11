@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 1. PARSEAR EL ARCHIVO TXT
-  function parsearArchivo(texto) {
+function parsearArchivo(texto) {
     const lineas = texto.split(/\r?\n/);
     const movimientos = [];
 
@@ -63,10 +63,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const asiento = cols[indexFecha + 1] ? cols[indexFecha + 1].trim() : '';
             
             // La descripción está DESPUÉS del asiento (columna indexFecha + 2)
-            const descripcion = cols[indexFecha + 2] ? cols[indexFecha + 2].trim() : '';
+            // Esta es la descripción COMPLETA del movimiento
+            let descripcion = '';
+            if (cols[indexFecha + 2]) {
+                descripcion = cols[indexFecha + 2].trim();
+                // Limpiar texto si contiene caracteres extraños
+                descripcion = descripcion.replace(/[♦◆◇]/g, '').trim();
+            }
             
             // Buscar los montos de débito y crédito
-            // Suelen estar en las últimas columnas antes del saldo final
             let debito = 0;
             let credito = 0;
             
@@ -75,8 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const val = cols[i].trim();
                 if (/^\d{1,3}(,\d{3})*\.\d{2}$/.test(val)) {
                     const num = parseFloat(val.replace(/,/g, ''));
-                    // El primer número grande después de la descripción es el débito
-                    // El segundo es el crédito (usualmente 0.00)
                     if (debito === 0 && num > 0) {
                         debito = num;
                     } else if (credito === 0) {
@@ -90,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 movimientos.push({
                     fecha: fechaStr,
                     asiento: asiento,
-                    descripcion: descripcion,
+                    descripcion: descripcion, // ← AQUÍ ESTÁ LA DESCRIPCIÓN COMPLETA
                     debito: debito,
                     credito: credito
                 });
