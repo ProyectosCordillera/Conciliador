@@ -20,14 +20,17 @@
         </div>
         <div class="card-body">
             <p class="text-muted mb-3">Sube el archivo <strong>.txt</strong> exportado desde Open 4 Business. El sistema emparejará automáticamente Débitos contra Créditos.</p>
-            <div class="row g-3 align-items-end">
-                <div class="col-md-8">
-                    <input type="file" id="fileInput" class="form-control" accept=".txt">
-                </div>
-                <div class="col-md-4">
-                    <button id="btnAnalizar" class="btn btn-primary w-100" disabled>🔎 Analizar Archivo</button>
-                </div>
-            </div>
+           <div class="row g-3 align-items-end">
+    <div class="col-md-6">
+        <input type="file" id="fileInput" class="form-control" accept=".txt">
+    </div>
+    <div class="col-md-3">
+        <button id="btnAnalizar" class="btn btn-primary w-100" disabled>🔎 Analizar</button>
+    </div>
+    <div class="col-md-3">
+        <button id="btnLimpiar" class="btn btn-outline-secondary w-100" style="display: none;">🧹 Limpiar</button>
+    </div>
+</div>
             <div id="alertContainer" class="mt-3"></div>
         </div>
     </div>
