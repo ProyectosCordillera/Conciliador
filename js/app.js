@@ -37,83 +37,69 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 1. PARSEAR EL ARCHIVO TXT
-    function parsearArchivo(texto) {
-        const lineas = texto.split(/\r?\n/);
-        const movimientos = [];
+  function parsearArchivo(texto) {
+    const lineas = texto.split(/\r?\n/);
+    const movimientos = [];
 
-        lineas.forEach(linea => {
-            const cols = linea.split('\t');
-            
-            // Buscar líneas que tengan una fecha válida (dd-mm-yyyy)
-            // En el TXT de Open 4 Business, la fecha está en la columna 0 o 5
-            let fechaStr = '';
-            for (let i = 0; i < Math.min(cols.length, 10); i++) {
-                if (/^\d{2}-\d{2}-\d{4}$/.test(cols[i].trim())) {
-                    fechaStr = cols[i].trim();
-                    break;
-                }
-            }
-            
-            if (fechaStr && cols.length > 8) {
-                // Extraer débitos y créditos (columnas 9 y 10 aprox)
-                // Buscamos números con formato de moneda
-                const montos = cols.filter(c => /[\d,]+\.\d{2}/.test(c));
-                
-                let debito = 0;
-                let credito = 0;
-                
-                // El formato típico es: Fecha | Asiento | Descripción | Débito | Crédito | Saldo
-                for (let i = 0; i < cols.length; i++) {
-                    const val = cols[i].trim();
-                    if (/^\d{1,3}(,\d{3})*\.\d{2}$/.test(val)) {
-                        const num = parseFloat(val.replace(/,/g, ''));
-                        // Si es 0.00 probablemente es un crédito vacío
-                        // Si hay un número grande, es débito o crédito
-                        if (num > 0) {
-                            // Determinar si es débito o crédito basado en la posición
-                            // En Open 4 Business, después de la descripción vienen Débito, Crédito, Saldo
-                            if (i >= 8 && i <= 10) {
-                                if (cols[i-1] && cols[i-1].includes('PROVEEDOR') || cols[i-1].includes('BODEGA')) {
-                                    debito = num;
-                                } else if (i+1 < cols.length && cols[i+1] && !cols[i+1].match(/^\d/)) {
-                                    credito = num;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Método alternativo: buscar explícitamente en las columnas conocidas
-                // Columna 9 = Débito, Columna 10 = Crédito (aproximadamente)
-                if (cols[9]) {
-                    const valDebito = cols[9].trim();
-                    if (/^\d{1,3}(,\d{3})*\.\d{2}$/.test(valDebito)) {
-                        debito = parseFloat(valDebito.replace(/,/g, ''));
-                    }
-                }
-                if (cols[10]) {
-                    const valCredito = cols[10].trim();
-                    if (/^\d{1,3}(,\d{3})*\.\d{2}$/.test(valCredito)) {
-                        credito = parseFloat(valCredito.replace(/,/g, ''));
-                    }
-                }
-                
-                // Solo agregar si tiene débito O crédito mayor a 0
-                if (debito > 0 || credito > 0) {
-                    movimientos.push({
-                        fecha: fechaStr,
-                        asiento: cols[1] ? cols[1].trim() : '',
-                        descripcion: cols[2] ? cols[2].trim() : '',
-                        debito: debito,
-                        credito: credito
-                    });
-                }
-            }
-        });
+    lineas.forEach(linea => {
+        const cols = linea.split('\t');
         
-        return movimientos;
-    }
-
+        // Buscar líneas que tengan una fecha válida (dd-mm-yyyy)
+        // La fecha suele estar en la columna 5
+        let fechaStr = '';
+        let indexFecha = -1;
+        
+        for (let i = 0; i < Math.min(cols.length, 15); i++) {
+            if (/^\d{2}-\d{2}-\d{4}$/.test(cols[i].trim())) {
+                fechaStr = cols[i].trim();
+                indexFecha = i;
+                break;
+            }
+        }
+        
+        // Solo procesar si encontramos fecha y tiene suficientes columnas
+        if (fechaStr && cols.length > 10) {
+            // El asiento está DESPUÉS de la fecha (columna indexFecha + 1)
+            const asiento = cols[indexFecha + 1] ? cols[indexFecha + 1].trim() : '';
+            
+            // La descripción está DESPUÉS del asiento (columna indexFecha + 2)
+            const descripcion = cols[indexFecha + 2] ? cols[indexFecha + 2].trim() : '';
+            
+            // Buscar los montos de débito y crédito
+            // Suelen estar en las últimas columnas antes del saldo final
+            let debito = 0;
+            let credito = 0;
+            
+            // Buscar números con formato de moneda (ej: 1,971,940.97)
+            for (let i = indexFecha + 3; i < cols.length; i++) {
+                const val = cols[i].trim();
+                if (/^\d{1,3}(,\d{3})*\.\d{2}$/.test(val)) {
+                    const num = parseFloat(val.replace(/,/g, ''));
+                    // El primer número grande después de la descripción es el débito
+                    // El segundo es el crédito (usualmente 0.00)
+                    if (debito === 0 && num > 0) {
+                        debito = num;
+                    } else if (credito === 0) {
+                        credito = num;
+                    }
+                }
+            }
+            
+            // Solo agregar si tiene débito O crédito mayor a 0
+            if (debito > 0 || credito > 0) {
+                movimientos.push({
+                    fecha: fechaStr,
+                    asiento: asiento,
+                    descripcion: descripcion,
+                    debito: debito,
+                    credito: credito
+                });
+            }
+        }
+    });
+    
+    return movimientos;
+}
     // 2. EMPAREJAR DÉBITOS CON CRÉDITOS
     function emparejarDebitosCreditos(movimientos) {
         let debitos = movimientos.filter(m => m.debito > 0).map(m => ({...m, emparejado: false}));
