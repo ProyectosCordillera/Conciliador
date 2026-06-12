@@ -1,7 +1,9 @@
-// js/app.js - Analizador de Cuenta Puente
-// Formato enfocado: altamira.txt (tabulado con encabezados repetidos)
+// js/app.js - Analizador de Cuenta Puente (Versión Dual Corregida)
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ============================================
+    // ELEMENTOS DEL DOM
+    // ============================================
     const fileInput = document.getElementById('fileInput');
     const btnAnalizar = document.getElementById('btnAnalizar');
     const btnLimpiar = document.getElementById('btnLimpiar');
@@ -21,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cardDiferencia = document.getElementById('cardDiferencia');
 
     // ============================================
-    // EVENTOS
+    // EVENTO: Seleccionar archivo
     // ============================================
     fileInput.addEventListener('change', () => {
         btnAnalizar.disabled = !fileInput.files.length;
@@ -30,54 +32,60 @@ document.addEventListener('DOMContentLoaded', () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 extraerInfoEmpresa(e.target.result);
-                mostrarAlerta(`✅ Archivo cargado: <strong>${file.name}</strong>. Presiona "Analizar".`, 'info');
+                const formato = detectarFormato(e.target.result);
+                mostrarAlerta(`✅ Archivo: <strong>${file.name}</strong> | Formato: <strong>${formato}</strong>`, 'info');
             };
             reader.readAsText(file);
         }
     });
 
- btnAnalizar.addEventListener('click', () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+    // ============================================
+    // EVENTO: Botón Analizar
+    // ============================================
+    btnAnalizar.addEventListener('click', () => {
+        const file = fileInput.files[0];
+        if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const texto = e.target.result;
-            
-            // Detectar formato
-            const formato = detectarFormato(texto);
-            console.log('🔍 Formato detectado:', formato);
-            
-            let movimientos = [];
-            
-            if (formato === 'altamira') {
-                movimientos = parsearFormatoAltamira(texto);
-            } else if (formato === 'getjobid139852') {
-                movimientos = parsearFormato852(texto);
-            } else {
-                mostrarAlerta('⚠️ Formato no reconocido. Solo se aceptan formatos Altamira y getjobid139852.', 'warning');
-                return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const texto = e.target.result;
+                const formato = detectarFormato(texto);
+                console.log('🔍 Formato detectado:', formato);
+                
+                let movimientos = [];
+                
+                // ⚠️ IMPORTANTE: Los nombres deben coincidir con detectarFormato()
+                if (formato === 'altamira') {
+                    movimientos = parsearFormatoAltamira(texto);
+                } else if (formato === '852') {
+                    movimientos = parsearFormato852(texto);
+                } else {
+                    mostrarAlerta('⚠️ Formato no reconocido. Solo se aceptan Altamira y 852.', 'warning');
+                    return;
+                }
+                
+                if (movimientos.length === 0) {
+                    mostrarAlerta('⚠️ No se encontraron movimientos válidos.', 'warning');
+                    return;
+                }
+
+                const parejas = emparejarDebitosCreditos(movimientos);
+                renderizarResultados(movimientos, parejas);
+                btnLimpiar.style.display = 'block';
+                mostrarAlerta(`✅ Análisis completado. ${movimientos.length} movimientos procesados.`, 'success');
+                
+            } catch (error) {
+                console.error(error);
+                mostrarAlerta(`❌ Error: ${error.message}`, 'danger');
             }
-            
-            if (movimientos.length === 0) {
-                mostrarAlerta('⚠️ No se encontraron movimientos válidos.', 'warning');
-                return;
-            }
+        };
+        reader.readAsText(file);
+    });
 
-            const parejas = emparejarDebitosCreditos(movimientos);
-            renderizarResultados(movimientos, parejas);
-            btnLimpiar.style.display = 'block';
-            mostrarAlerta(`✅ Análisis completado. Se procesaron ${movimientos.length} movimientos.`, 'success');
-            
-        } catch (error) {
-            console.error(error);
-            mostrarAlerta(`❌ Error: ${error.message}`, 'danger');
-        }
-    };
-    reader.readAsText(file);
-});
-
+    // ============================================
+    // EVENTO: Botón Limpiar
+    // ============================================
     btnLimpiar.addEventListener('click', () => {
         fileInput.value = '';
         resultadosDiv.style.display = 'none';
@@ -99,34 +107,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // 🕵️ DETECTAR FORMATO
     // ============================================
-   // ============================================
-// 🕵️ FUNCIÓN DETECTIVE: Detecta el formato
-// ============================================
-function detectarFormato(texto) {
-    const lineas = texto.split(/\r?\n/);
-    
-    for (let linea of lineas) {
-        if (!linea.trim()) continue;
+    function detectarFormato(texto) {
+        const lineas = texto.split(/\r?\n/);
         
-        // Si la línea empieza con una fecha (DD-MM-YYYY) → Formato 852 (espaciado)
-        if (/^\d{2}-\d{2}-\d{4}\s/.test(linea)) {
-            console.log('🔍 Formato detectado: 852 (Espaciado)');
-            return '852';
+        for (let linea of lineas) {
+            if (!linea.trim()) continue;
+            
+            // Si la línea empieza con fecha (DD-MM-YYYY) → Formato 852
+            if (/^\d{2}-\d{2}-\d{4}\s/.test(linea)) {
+                return '852';
+            }
+            
+            // Si tiene tabs y "Cuenta Contable" → Formato Altamira
+            if (linea.includes('\t') && linea.includes('Cuenta Contable')) {
+                return 'altamira';
+            }
         }
         
-        // Si la línea tiene tabs y contiene "Cuenta Contable" → Formato Altamira (tabulado)
-        if (linea.includes('\t') && linea.includes('Cuenta Contable')) {
-            console.log('🔍 Formato detectado: Altamira (Tabulado)');
-            return 'altamira';
-        }
+        return 'desconocido';
     }
-    
-    console.log('⚠️ Formato no reconocido');
-    return 'desconocido';
-}
 
     // ============================================
-    // 📄 PARSEAR FORMATO ALTAMIRA
+    // 📄 PARSER 1: FORMATO ALTAMIRA (Tabulado)
+    // Estructura: Cuenta\tDesc\tDeb\tCred\tSaldo\tFECHA\tASIENTO\tDESC_MOV\t\tMONTO_DEB\tMONTO_CRED\t...
     // ============================================
     function parsearFormatoAltamira(texto) {
         const lineas = texto.split(/\r?\n/);
@@ -134,27 +137,62 @@ function detectarFormato(texto) {
 
         lineas.forEach((linea, index) => {
             if (!linea.trim()) return;
-
+            
             const cols = linea.split('\t');
             
-            // Necesitamos al menos 12 columnas
-            if (cols.length < 12) return;
+            // Necesitamos al menos 11 columnas
+            if (cols.length < 11) return;
             
-            // La columna 5 puede ser:
-            // - Número de cuenta: 06-02-01-04-07 (ignorar, es resumen)
-            // - Fecha: 06-04-2026 (procesar, es movimiento)
-            const posibleFecha = cols[5].trim();
+            // La fecha está en columna 5
+            const fechaStr = cols[5] ? cols[5].trim() : '';
             
-            // Solo procesar si es una fecha válida (DD-MM-YYYY)
-            if (!/^\d{2}-\d{2}-\d{4}$/.test(posibleFecha)) return;
+            // Validar que sea fecha (no número de cuenta)
+            if (!/^\d{2}-\d{2}-\d{4}$/.test(fechaStr)) return;
             
-            const fecha = posibleFecha;
-            const asiento = cols[6].trim();
-            const descripcion = cols[7].trim();
+            const asiento = cols[6] ? cols[6].trim() : '';
+            const descripcion = cols[7] ? cols[7].trim() : '';
             const debito = parsearMonto(cols[9]);
             const credito = parsearMonto(cols[10]);
             
-            // Solo agregar si tiene débito O crédito mayor a 0
+            if (debito > 0 || credito > 0) {
+                movimientos.push({
+                    lineaOriginal: index + 1,
+                    fecha: fechaStr,
+                    asiento: asiento,
+                    descripcion: descripcion,
+                    debito: debito,
+                    credito: credito
+                });
+            }
+        });
+
+        console.log(`✅ Formato Altamira: ${movimientos.length} movimientos`);
+        return movimientos;
+    }
+
+    // ============================================
+    // 📄 PARSER 2: FORMATO 852 (Espaciado)
+    // Estructura: DD-MM-YYYY NNNN DESCRIPCIÓN... DÉBITO CRÉDITO SALDO
+    // ============================================
+    function parsearFormato852(texto) {
+        const movimientos = [];
+        const lineas = texto.split(/\r?\n/);
+        
+        // Regex: fecha, asiento, descripción (greedy), 3 montos al final
+        const regex = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.+?)\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s*$/;
+        
+        lineas.forEach((linea, index) => {
+            if (!linea.trim()) return;
+            
+            const match = linea.match(regex);
+            if (!match) return;
+            
+            const fecha = match[1];
+            const asiento = match[2];
+            const descripcion = match[3].trim();
+            const debito = parsearMonto(match[4]);
+            const credito = parsearMonto(match[5]);
+            
             if (debito > 0 || credito > 0) {
                 movimientos.push({
                     lineaOriginal: index + 1,
@@ -166,8 +204,8 @@ function detectarFormato(texto) {
                 });
             }
         });
-
-        console.log(`✅ Formato Altamira: ${movimientos.length} movimientos procesados`);
+        
+        console.log(`✅ Formato 852: ${movimientos.length} movimientos`);
         return movimientos;
     }
 
@@ -180,46 +218,7 @@ function detectarFormato(texto) {
         const num = parseFloat(limpio);
         return isNaN(num) ? 0 : num;
     }
-// ============================================
-// 📄 FORMATO 852: Espaciado (getjobid139852.txt)
-// ============================================
-function parsearFormato852(texto) {
-    const movimientos = [];
-    const lineas = texto.split(/\r?\n/);
-    
-    // Regex para capturar: fecha, asiento, descripción, débito, crédito, saldo
-    // La descripción puede contener cualquier texto (incluyendo números)
-    // Los últimos 3 números de la línea son: Débito, Crédito, Saldo
-    const regex = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.*)\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s*$/;
-    
-    lineas.forEach((linea, index) => {
-        if (!linea.trim()) return;
-        
-        const match = linea.match(regex);
-        if (!match) return;
-        
-        const fecha = match[1];
-        const asiento = match[2];
-        const descripcion = match[3].trim();
-        const debito = parsearMonto(match[4]);
-        const credito = parsearMonto(match[5]);
-        
-        // Solo agregar si tiene débito O crédito mayor a 0
-        if (debito > 0 || credito > 0) {
-            movimientos.push({
-                lineaOriginal: index + 1,
-                fecha,
-                asiento,
-                descripcion,
-                debito,
-                credito
-            });
-        }
-    });
-    
-    console.log(`✅ Formato 852: ${movimientos.length} movimientos procesados`);
-    return movimientos;
-}
+
     // ============================================
     // 🏢 EXTRAER INFO DE EMPRESA
     // ============================================
