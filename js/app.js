@@ -1,4 +1,4 @@
-// js/app.js - Lógica del Analizador de Cuenta Puente (Versión Universal)
+// js/app.js - Lógica del Analizador de Cuenta Puente (Versión Robusta)
 
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('fileInput');
@@ -8,22 +8,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultadosDiv = document.getElementById('resultados');
     const tbodyParejas = document.getElementById('tbodyParejas');
 
-    // Elementos de información
     const lblEmpresa = document.getElementById('lblEmpresa');
     const lblCuenta = document.getElementById('lblCuenta');
     const footerEmpresa = document.getElementById('footerEmpresa');
     const footerCuenta = document.getElementById('footerCuenta');
 
-    // Elementos de totales
     const lblDebitos = document.getElementById('lblDebitos');
     const lblCreditos = document.getElementById('lblCreditos');
     const lblDiferencia = document.getElementById('lblDiferencia');
     const lblTotalParejas = document.getElementById('lblTotalParejas');
     const cardDiferencia = document.getElementById('cardDiferencia');
 
-    // ============================================
-    // EVENTOS DE BOTONES
-    // ============================================
     fileInput.addEventListener('change', () => {
         btnAnalizar.disabled = !fileInput.files.length;
     });
@@ -37,23 +32,18 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const texto = e.target.result;
                 
-                // 1. Extraer información de la empresa/cuenta (si existe)
                 extraerInfoEmpresa(texto);
-                
-                // 2. Parsear movimientos (Detecta formato Altamira o 852 automáticamente)
-                const movimientos = parsearArchivoUniversal(texto);
+                const movimientos = parsearArchivoRobusto(texto);
                 
                 if (movimientos.length === 0) {
                     mostrarAlerta('⚠️ No se encontraron movimientos válidos. Verifica el formato del archivo.', 'warning');
                     return;
                 }
 
-                // 3. Emparejar y Renderizar
                 const parejas = emparejarDebitosCreditos(movimientos);
                 renderizarResultados(movimientos, parejas);
                 
                 btnLimpiar.style.display = 'block';
-                mostrarAlerta(`✅ Análisis completado. Se procesaron ${movimientos.length} movimientos.`, 'success');
             } catch (error) {
                 console.error(error);
                 mostrarAlerta(`❌ Error al procesar: ${error.message}`, 'danger');
@@ -75,19 +65,14 @@ document.addEventListener('DOMContentLoaded', () => {
         btnAnalizar.disabled = true;
         btnLimpiar.style.display = 'none';
         
-        // Resetear info empresa
         lblEmpresa.textContent = 'Sin archivo cargado';
         lblCuenta.textContent = 'Cuenta: -';
         footerEmpresa.textContent = 'Esperando archivo...';
         footerCuenta.textContent = '-';
     });
 
-    // ============================================
-    // FUNCIONES DE PARSEO INTELIGENTE
-    // ============================================
-    
     function extraerInfoEmpresa(texto) {
-        // Buscar número de cuenta (formato XX-XX-XX-XX-XX)
+        // Buscar número de cuenta
         const matchCuenta = texto.match(/(\d{2}-\d{2}-\d{2}-\d{2}-\d{2})/);
         if (matchCuenta) {
             const cuenta = matchCuenta[1];
@@ -95,80 +80,83 @@ document.addEventListener('DOMContentLoaded', () => {
             lblCuenta.textContent = `Cuenta: ${cuenta}`;
         }
 
-        // Buscar nombre de empresa (ej: URUKA POINT S.A. o CONDOMINIO ALTAMIRA)
+        // Buscar nombre de empresa
         if (texto.includes('URUKA')) {
-            lblEmpresa.textContent = 'Uruka Point S.A.';
-            footerEmpresa.textContent = 'Uruka Point S.A.';
+            lblEmpresa.textContent = 'Uruka Point';
+            footerEmpresa.textContent = 'Uruka Point';
         } else if (texto.includes('ALTAMIRA')) {
             lblEmpresa.textContent = 'Condominio Altamira';
             footerEmpresa.textContent = 'Condominio Altamira';
-        } else {
-            lblEmpresa.textContent = 'Empresa No Identificada';
-            footerEmpresa.textContent = 'Empresa No Identificada';
+        } else if (texto.includes('TORRE AZUR')) {
+            lblEmpresa.textContent = 'Torre Azur';
+            footerEmpresa.textContent = 'Torre Azur';
         }
     }
 
-    function parsearArchivoUniversal(texto) {
+    function parsearArchivoRobusto(texto) {
         const lineas = texto.split(/\r?\n/);
         const movimientos = [];
 
-        lineas.forEach(linea => {
+        lineas.forEach((linea, index) => {
             if (!linea.trim()) return;
 
-            const cols = linea.split('\t');
-            let fecha = '', asiento = '', descripcion = '', debito = 0, credito = 0;
-            let formatoDetectado = null;
+            // Ignorar líneas de encabezado
+            if (linea.includes('Cuenta Contable') || 
+                linea.includes('Total Saldo Anterior') ||
+                linea.includes('Total Acumulado') ||
+                linea.includes('Impreso el:') ||
+                linea.includes('Usuario:') ||
+                linea.includes('Reporte:') ||
+                linea.includes('Página:')) {
+                return;
+            }
 
-            // --- INTENTO 1: Formato Altamira (Tabulado con totales al final) ---
-            // Tiene muchas columnas y la fecha está en el índice 5
-            if (cols.length >= 11) {
-                const posibleFecha = cols[5].trim();
-                // Validar que sea fecha (dd-mm-yyyy) y no número de cuenta (06-02-01-04-07)
-                if (/^\d{2}-\d{2}-\d{4}$/.test(posibleFecha)) {
-                    formatoDetectado = 'altamira';
-                    fecha = posibleFecha;
-                    asiento = cols[6].trim();
-                    descripcion = cols[7].trim();
-                    // En Altamira, los montos suelen estar en las columnas 9 y 10
-                    debito = parsearMonto(cols[9]);
-                    credito = parsearMonto(cols[10]);
+            // Intentar extraer fecha del inicio de la línea
+            const matchFecha = linea.match(/^(\d{2}-\d{2}-\d{4})/);
+            if (!matchFecha) return;
+
+            const fecha = matchFecha[1];
+
+            // Intentar extraer asiento (número después de la fecha)
+            const matchAsiento = linea.match(/^\d{2}-\d{2}-\d{4}\s+(\d+)/);
+            const asiento = matchAsiento ? matchAsiento[1] : '';
+
+            // Extraer descripción (todo entre el asiento y los números)
+            const matchDesc = linea.match(/^\d{2}-\d{2}-\d{4}\s+\d+\s+(.+?)(?=\s+[\d,]+\.\d{2})/);
+            const descripcion = matchDesc ? matchDesc[1].trim() : '';
+
+            // Extraer todos los números con formato de moneda
+            const numeros = linea.match(/[\d,]+\.\d{2}/g);
+            if (!numeros || numeros.length < 2) return;
+
+            // Los últimos 2 números son débito y crédito (o saldo)
+            // Necesitamos identificar cuál es débito y cuál es crédito
+            let debito = 0;
+            let credito = 0;
+
+            // Buscar el patrón: descripción, luego débito (puede estar vacío), luego crédito
+            const matchMontos = linea.match(/(?:^|\t)([\d,]*\.\d{2})\t([\d,]*\.\d{2})/);
+            
+            if (matchMontos) {
+                debito = parseFloat(matchMontos[1].replace(/,/g, '')) || 0;
+                credito = parseFloat(matchMontos[2].replace(/,/g, '')) || 0;
+            } else {
+                // Si no hay tabs, buscar el patrón con espacios
+                const matchMontosEspacios = linea.match(/\s+([\d,]*\.\d{2})\s+([\d,]*\.\d{2})/);
+                if (matchMontosEspacios) {
+                    debito = parseFloat(matchMontosEspacios[1].replace(/,/g, '')) || 0;
+                    credito = parseFloat(matchMontosEspacios[2].replace(/,/g, '')) || 0;
                 }
             }
 
-            // --- INTENTO 2: Formato 852 (Tabulado limpio) ---
-            // Fecha en columna 0
-            if (!formatoDetectado && cols.length >= 6) {
-                const posibleFecha = cols[0].trim();
-                if (/^\d{2}-\d{2}-\d{4}$/.test(posibleFecha)) {
-                    formatoDetectado = '852-tabs';
-                    fecha = posibleFecha;
-                    asiento = cols[1].trim();
-                    descripcion = cols[2].trim();
-                    // Asumimos: Fecha(0), Asiento(1), Desc(2), Grupo(3), Debito(4), Credito(5)
-                    debito = parsearMonto(cols[4]);
-                    credito = parsearMonto(cols[5]);
-                }
-            }
-
-            // --- INTENTO 3: Formato 852 (Separado por espacios) ---
-            // Si los tabs fallaron, usamos Regex para buscar el patrón al inicio de la línea
-            if (!formatoDetectado) {
-                const regex = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.*?)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,-]+\.\d{2})/;
-                const match = linea.match(regex);
-                if (match) {
-                    formatoDetectado = '852-espacios';
-                    fecha = match[1];
-                    asiento = match[2];
-                    descripcion = match[3].trim();
-                    debito = parsearMonto(match[4]);
-                    credito = parsearMonto(match[5]);
-                }
-            }
-
-            // Si se detectó un formato válido y hay montos, agregar a la lista
-            if (formatoDetectado && (debito > 0 || credito > 0)) {
+            if (debito > 0 || credito > 0) {
                 movimientos.push({
-                    fecha, asiento, descripcion, debito, credito
+                    lineaOriginal: index + 1,
+                    fecha,
+                    asiento,
+                    descripcion,
+                    debito,
+                    credito
                 });
             }
         });
@@ -176,42 +164,29 @@ document.addEventListener('DOMContentLoaded', () => {
         return movimientos;
     }
 
-    function parsearMonto(valor) {
-        if (!valor) return 0;
-        const limpio = valor.toString().replace(/,/g, '').trim();
-        const num = parseFloat(limpio);
-        return isNaN(num) ? 0 : num;
-    }
-
-    // ============================================
-    // LÓGICA DE EMPAREJAMIENTO
-    // ============================================
     function emparejarDebitosCreditos(movimientos) {
         let debitos = movimientos.filter(m => m.debito > 0).map(m => ({...m, emparejado: false}));
         let creditos = movimientos.filter(m => m.credito > 0).map(m => ({...m, emparejado: false}));
         let parejas = [];
 
-        // Nivel 1: Coincidencias exactas
         debitos.forEach(d => {
             if (d.emparejado) return;
             const c = creditos.find(c => !c.emparejado && c.credito === d.debito);
             if (c) {
                 parejas.push({ d, c, diff: 0, estado: '✅ Conciliado', color: 'verde' });
-                d.emparejado = true; c.emparejado = true;
+                d.emparejado = true;
+                c.emparejado = true;
             }
         });
 
-        // Nivel 2: Débitos sin pareja
         debitos.filter(d => !d.emparejado).forEach(d => {
             parejas.push({ d, c: null, diff: d.debito, estado: '❌ Sin pareja (Débito)', color: 'roja' });
         });
 
-        // Nivel 3: Créditos sin pareja
         creditos.filter(c => !c.emparejado).forEach(c => {
             parejas.push({ d: null, c, diff: -c.credito, estado: '❌ Sin pareja (Crédito)', color: 'roja' });
         });
 
-        // Ordenar por monto
         parejas.sort((a, b) => {
             const montoA = Math.max(a.d?.debito || 0, a.c?.credito || 0);
             const montoB = Math.max(b.d?.debito || 0, b.c?.credito || 0);
@@ -221,9 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return parejas;
     }
 
-    // ============================================
-    // RENDERIZADO
-    // ============================================
     function renderizarResultados(movimientos, parejas) {
         resultadosDiv.style.display = 'block';
         
@@ -247,21 +219,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const fmtCredito = p.c ? p.c.credito.toLocaleString('en-US', {minimumFractionDigits: 2}) : '0.00';
             const fmtDiff = p.diff.toLocaleString('en-US', {minimumFractionDigits: 2});
 
-            const escapeHtml = (str) => {
-                if (!str) return '-';
-                return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            };
-
             tr.innerHTML = `
-                <td>${p.d ? escapeHtml(p.d.fecha) : '-'}</td>
-                <td><strong>${p.d ? escapeHtml(p.d.asiento) : '-'}</strong></td>
-                <td><small>${p.d ? escapeHtml(p.d.descripcion) : '-'}</small></td>
-                <td class="text-end monto-debito">${fmtDebito}</td>
+                <td>${p.d ? p.d.fecha : '-'}</td>
+                <td><strong>${p.d ? p.d.asiento : '-'}</strong></td>
+                <td><small>${p.d ? p.d.descripcion : '-'}</small></td>
+                <td class="text-end">${fmtDebito}</td>
                 <td class="text-end"><strong>${fmtDiff}</strong></td>
-                <td class="text-end monto-credito">${fmtCredito}</td>
-                <td><small>${p.c ? escapeHtml(p.c.descripcion) : '-'}</small></td>
-                <td><strong>${p.c ? escapeHtml(p.c.asiento) : '-'}</strong></td>
-                <td>${p.c ? escapeHtml(p.c.fecha) : '-'}</td>
+                <td class="text-end">${fmtCredito}</td>
+                <td><small>${p.c ? p.c.descripcion : '-'}</small></td>
+                <td><strong>${p.c ? p.c.asiento : '-'}</strong></td>
+                <td>${p.c ? p.c.fecha : '-'}</td>
                 <td class="text-center">
                     <span class="badge ${p.color === 'verde' ? 'bg-success' : 'bg-danger'}">
                         ${p.estado}
@@ -270,6 +237,13 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             tbodyParejas.appendChild(tr);
         });
+
+        const errores = parejas.filter(p => p.color === 'roja').length;
+        if (errores === 0) {
+            mostrarAlerta(`✅ ¡CUENTA CUADRADA! Todas las ${parejas.length} parejas están conciliadas.`, 'success');
+        } else {
+            mostrarAlerta(`❌ HAY DESCUADRES. ${errores} líneas sin conciliar.`, 'danger');
+        }
     }
 
     function mostrarAlerta(mensaje, tipo) {
