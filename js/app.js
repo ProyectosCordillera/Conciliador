@@ -37,20 +37,38 @@ document.addEventListener('DOMContentLoaded', () => {
         alertContainer.innerHTML = '';
         resultadosDiv.style.display = 'none';
         
-        // Limpiar información del archivo
         lblEmpresa.textContent = 'Sin archivo cargado';
         lblCuenta.textContent = 'Cuenta: -';
-        footerEmpresa.textContent = '';
-        footerCuenta.textContent = '';
+        footerEmpresa.textContent = 'Esperando archivo...';
+        footerCuenta.textContent = '-';
         
         console.log('✅ Sistema reseteado completamente');
     }
 
     // ============================================
-    // EVENTO: Seleccionar archivo
+    // ⭐ NUEVO: EVENTO - Al seleccionar archivo, precargar info
     // ============================================
     fileInput.addEventListener('change', () => {
         btnAnalizar.disabled = !fileInput.files.length;
+        
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                const texto = e.target.result;
+                
+                // 🎯 PRECARGAR información del archivo INMEDIATAMENTE
+                extraerInformacionArchivo(texto);
+                
+                // Mostrar mensaje de confirmación
+                mostrarAlerta(`✅ Archivo cargado: <strong>${file.name}</strong>. Ya puedes presionar "Analizar".`, 'info');
+            };
+            
+            reader.readAsText(file);
+        } else {
+            resetearTodo();
+        }
     });
 
     // ============================================
@@ -60,15 +78,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = fileInput.files[0];
         if (!file) return;
 
-        resetearTodo();
-        
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const texto = e.target.result;
-                
-                // Extraer información del archivo
-                extraerInformacionArchivo(texto);
                 
                 // Parsear movimientos
                 const movimientos = parsearArchivo(texto);
@@ -78,10 +91,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
+                // Emparejar
                 const parejas = emparejarDebitosCreditos(movimientos);
+                
+                // Renderizar
                 renderizarResultados(movimientos, parejas);
                 
+                // Mostrar botón de limpiar
                 btnLimpiar.style.display = 'block';
+                
                 console.log(`✅ Análisis completado: ${movimientos.length} movimientos`);
             } catch (error) {
                 console.error('❌ Error:', error);
@@ -103,8 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ============================================
-    // FUNCIÓN: EXTRAER INFORMACIÓN DEL ARCHIVO
-    // (ESTA ES LA FUNCIÓN QUE ME PREGUNTASTE)
+    // ⭐ FUNCIÓN: EXTRAER INFORMACIÓN DEL ARCHIVO
+    // (Se ejecuta al SUBIR el archivo, no al analizar)
     // ============================================
     function extraerInformacionArchivo(texto) {
         const lineas = texto.split(/\r?\n/);
@@ -155,11 +173,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Actualizar encabezado
+        // 🎯 Actualizar encabezado Y footer
         lblEmpresa.textContent = empresa;
         lblCuenta.textContent = `Cuenta: ${cuentaNumero} - ${cuentaDescripcion}`;
-        
-        // Actualizar FOOTER (esto es lo que faltaba antes)
         footerEmpresa.textContent = empresa;
         footerCuenta.textContent = cuentaNumero;
         
@@ -262,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // NIVEL 3: Sin pareja (Rojo) - Débitos
+        // NIVEL 3: Sin pareja (Rojo)
         debitos.filter(d => !d.emparejado).forEach(d => {
             parejas.push({ 
                 d, c: null, diff: d.debito, 
@@ -272,7 +288,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // NIVEL 3: Sin pareja (Rojo) - Créditos
         creditos.filter(c => !c.emparejado).forEach(c => {
             parejas.push({ 
                 d: null, c, diff: -c.credito, 
