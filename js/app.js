@@ -1,4 +1,4 @@
-// js/app.js - Lógica del Analizador de Cuenta Puente (UNIVERSAL)
+// js/app.js - Analizador de Cuenta Puente (Versión Dual)
 
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('fileInput');
@@ -29,7 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 extraerInfoEmpresa(e.target.result);
-                mostrarAlerta(`✅ Archivo cargado: <strong>${file.name}</strong>. Presiona "Analizar".`, 'info');
+                const formato = detectarFormato(e.target.result);
+                mostrarAlerta(`✅ Archivo: <strong>${file.name}</strong> | Formato detectado: <strong>${formato}</strong>`, 'info');
             };
             reader.readAsText(file);
         }
@@ -43,7 +44,14 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = (e) => {
             try {
                 const texto = e.target.result;
-                const movimientos = parsearUniversal(texto);
+                const formato = detectarFormato(texto);
+                
+                let movimientos = [];
+                if (formato === 'A') {
+                    movimientos = parsearFormatoA(texto);
+                } else if (formato === 'B') {
+                    movimientos = parsearFormatoB(texto);
+                }
                 
                 if (movimientos.length === 0) {
                     mostrarAlerta('⚠️ No se encontraron movimientos válidos.', 'warning');
@@ -80,7 +88,136 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ============================================
-    // EXTRAER INFORMACIÓN DE EMPRESA
+    // 🕵️ FUNCIÓN DETECTIVE: Detecta el formato
+    // ============================================
+    function detectarFormato(texto) {
+        const lineas = texto.split(/\r?\n/);
+        
+        // Buscar la primera línea que empiece con una fecha (DD-MM-YYYY)
+        for (let linea of lineas) {
+            if (!linea.trim()) continue;
+            
+            // Si la línea empieza con una fecha → Formato A (espaciado)
+            if (/^\d{2}-\d{2}-\d{4}\s/.test(linea)) {
+                console.log('🔍 Formato detectado: A (Espaciado - getjobid139852)');
+                return 'A';
+            }
+            
+            // Si la línea tiene tabs y contiene una fecha → Formato B (tabulado)
+            if (linea.includes('\t')) {
+                const cols = linea.split('\t');
+                for (let col of cols) {
+                    if (/^\d{2}-\d{2}-\d{4}$/.test(col.trim())) {
+                        console.log(' Formato detectado: B (Tabulado - altamira)');
+                        return 'B';
+                    }
+                }
+            }
+        }
+        
+        console.log('⚠️ Formato no reconocido, usando B por defecto');
+        return 'B';
+    }
+
+    // ============================================
+    // 📄 FORMATO A: Espaciado (getjobid139852.txt)
+    // Estructura: DD-MM-YYYY NNNN DESCRIPCIÓN... MONTO1 MONTO2 MONTO3
+    // ============================================
+    function parsearFormatoA(texto) {
+        const movimientos = [];
+        const lineas = texto.split(/\r?\n/);
+        
+        // Regex para capturar: fecha, asiento, descripción, débito, crédito, saldo
+        // La descripción puede contener cualquier texto hasta llegar a los números finales
+        const regex = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.+?)\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s*$/;
+        
+        lineas.forEach((linea, index) => {
+            if (!linea.trim()) return;
+            
+            const match = linea.match(regex);
+            if (!match) return;
+            
+            const fecha = match[1];
+            const asiento = match[2];
+            const descripcion = match[3].trim();
+            const debito = parsearMonto(match[4]);
+            const credito = parsearMonto(match[5]);
+            
+            if (debito > 0 || credito > 0) {
+                movimientos.push({
+                    lineaOriginal: index + 1,
+                    fecha,
+                    asiento,
+                    descripcion,
+                    debito,
+                    credito
+                });
+            }
+        });
+        
+        console.log(`✅ Formato A: ${movimientos.length} movimientos procesados`);
+        return movimientos;
+    }
+
+    // ============================================
+    // 📊 FORMATO B: Tabulado (altamira.txt)
+    // Estructura: Cuenta\tDesc\tDeb\tCred\tSaldo\tFECHA\tASIENTO\tDESC_MOV\t...\tMONTO_DEB\tMONTO_CRED\t...
+    // ============================================
+    function parsearFormatoB(texto) {
+        const movimientos = [];
+        const lineas = texto.split(/\r?\n/);
+        
+        lineas.forEach((linea, index) => {
+            if (!linea.trim()) return;
+            
+            // Ignorar líneas de encabezado y totales
+            if (linea.includes('Cuenta Contable') ||
+                linea.includes('Total Saldo Anterior') ||
+                linea.includes('Total Acumulado') ||
+                linea.includes('Total:')) {
+                return;
+            }
+            
+            const cols = linea.split('\t');
+            if (cols.length < 11) return;
+            
+            // La fecha está en la columna 5
+            const fechaStr = cols[5]?.trim();
+            if (!/^\d{2}-\d{2}-\d{4}$/.test(fechaStr)) return;
+            
+            const asiento = cols[6]?.trim() || '';
+            const descripcion = cols[7]?.trim() || '';
+            const debito = parsearMonto(cols[9]);
+            const credito = parsearMonto(cols[10]);
+            
+            if (debito > 0 || credito > 0) {
+                movimientos.push({
+                    lineaOriginal: index + 1,
+                    fecha: fechaStr,
+                    asiento,
+                    descripcion,
+                    debito,
+                    credito
+                });
+            }
+        });
+        
+        console.log(`✅ Formato B: ${movimientos.length} movimientos procesados`);
+        return movimientos;
+    }
+
+    // ============================================
+    // 🔧 FUNCIÓN AUXILIAR: Parsear montos
+    // ============================================
+    function parsearMonto(valor) {
+        if (!valor) return 0;
+        const limpio = valor.toString().replace(/,/g, '').trim();
+        const num = parseFloat(limpio);
+        return isNaN(num) ? 0 : num;
+    }
+
+    // ============================================
+    // 🏢 EXTRAER INFO DE EMPRESA
     // ============================================
     function extraerInfoEmpresa(texto) {
         const matchCuenta = texto.match(/(\d{2}-\d{2}-\d{2}-\d{2}-\d{2})/);
@@ -102,92 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ============================================
-    // PARSER UNIVERSAL (AUTO-DETECCIÓN POR LÍNEA)
-    // ============================================
-    function parsearUniversal(texto) {
-        const lineas = texto.split(/\r?\n/);
-        const movimientos = [];
-
-        // Regex para detectar formato espaciado: DD-MM-YYYY NNNN DESCRIPCION...
-        const regexEspaciado = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.+?)\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s*$/;
-
-        lineas.forEach((linea, index) => {
-            if (!linea.trim()) return;
-
-            // Ignorar líneas de encabezado/resumen
-            if (linea.includes('Cuenta Contable') ||
-                linea.includes('Total Saldo Anterior') ||
-                linea.includes('Total Acumulado') ||
-                linea.includes('Impreso el:') ||
-                linea.includes('Usuario:') ||
-                linea.includes('Reporte:') ||
-                linea.includes('Página:') ||
-                linea.includes('Saldo Anterior:') ||
-                linea.includes('Acumulado:') ||
-                linea.includes('Fecha Asiento Descripción') ||
-                linea.includes('COMPAÑÍA:') ||
-                linea.includes('MONEDA DEL REPORTE') ||
-                linea.includes('OPEN 4 BUSINESS') ||
-                linea.includes('MOVIMIENTOS DE CUENTA')) {
-                return;
-            }
-
-            let fecha, asiento, descripcion, debito, credito;
-
-            // INTENTO 1: Formato TABULADO (Altamira/Uruka clásico)
-            if (linea.includes('\t')) {
-                const cols = linea.split('\t');
-                
-                // Buscar fecha en columna 5
-                if (cols.length >= 11) {
-                    const posibleFecha = cols[5]?.trim();
-                    if (/^\d{2}-\d{2}-\d{4}$/.test(posibleFecha)) {
-                        fecha = posibleFecha;
-                        asiento = cols[6]?.trim() || '';
-                        descripcion = cols[7]?.trim() || '';
-                        debito = parsearMonto(cols[9]);
-                        credito = parsearMonto(cols[10]);
-                    }
-                }
-            }
-
-            // INTENTO 2: Formato ESPACIADO (getjobid139852)
-            if (!fecha) {
-                const match = linea.match(regexEspaciado);
-                if (match) {
-                    fecha = match[1];
-                    asiento = match[2];
-                    descripcion = match[3].trim();
-                    debito = parsearMonto(match[4]);
-                    credito = parsearMonto(match[5]);
-                }
-            }
-
-            // Validar y agregar
-            if (fecha && /^\d{2}-\d{2}-\d{4}$/.test(fecha) && (debito > 0 || credito > 0)) {
-                movimientos.push({
-                    lineaOriginal: index + 1,
-                    fecha,
-                    asiento: asiento || '-',
-                    descripcion: descripcion || '-',
-                    debito,
-                    credito
-                });
-            }
-        });
-
-        return movimientos;
-    }
-
-    function parsearMonto(valor) {
-        if (!valor) return 0;
-        const limpio = valor.toString().replace(/,/g, '').trim();
-        const num = parseFloat(limpio);
-        return isNaN(num) ? 0 : num;
-    }
-
-    // ============================================
-    // MOTOR DE EMPAREJAMIENTO
+    // 🔗 MOTOR DE EMPAREJAMIENTO
     // ============================================
     function emparejarDebitosCreditos(movimientos) {
         let debitos = movimientos.filter(m => m.debito > 0).map(m => ({...m, emparejado: false}));
@@ -228,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
             parejas.push({ d, c: null, diff: d.debito, estado: '❌ Sin pareja (Débito)', color: 'roja' });
         });
         creditos.filter(c => !c.emparejado).forEach(c => {
-            parejas.push({ d: null, c, diff: -c.credito, estado: ' Sin pareja (Crédito)', color: 'roja' });
+            parejas.push({ d: null, c, diff: -c.credito, estado: '❌ Sin pareja (Crédito)', color: 'roja' });
         });
 
         parejas.sort((a, b) => {
@@ -241,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ============================================
-    // RENDERIZAR
+    // 📊 RENDERIZAR RESULTADOS
     // ============================================
     function renderizarResultados(movimientos, parejas) {
         resultadosDiv.style.display = 'block';
@@ -266,21 +318,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const fmtCredito = p.c ? p.c.credito.toLocaleString('en-US', {minimumFractionDigits: 2}) : '0.00';
             const fmtDiff = p.diff.toLocaleString('en-US', {minimumFractionDigits: 2});
 
-            const escapeHtml = (str) => {
-                if (!str) return '-';
-                return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            };
-
             tr.innerHTML = `
-                <td>${p.d ? escapeHtml(p.d.fecha) : '-'}</td>
-                <td><strong>${p.d ? escapeHtml(p.d.asiento) : '-'}</strong></td>
-                <td><small>${p.d ? escapeHtml(p.d.descripcion) : '-'}</small></td>
+                <td>${p.d ? p.d.fecha : '-'}</td>
+                <td><strong>${p.d ? p.d.asiento : '-'}</strong></td>
+                <td><small>${p.d ? p.d.descripcion : '-'}</small></td>
                 <td class="text-end monto-debito">${fmtDebito}</td>
                 <td class="text-end"><strong>${fmtDiff}</strong></td>
                 <td class="text-end monto-credito">${fmtCredito}</td>
-                <td><small>${p.c ? escapeHtml(p.c.descripcion) : '-'}</small></td>
-                <td><strong>${p.c ? escapeHtml(p.c.asiento) : '-'}</strong></td>
-                <td>${p.c ? escapeHtml(p.c.fecha) : '-'}</td>
+                <td><small>${p.c ? p.c.descripcion : '-'}</small></td>
+                <td><strong>${p.c ? p.c.asiento : '-'}</strong></td>
+                <td>${p.c ? p.c.fecha : '-'}</td>
                 <td class="text-center">
                     <span class="badge ${p.color === 'verde' ? 'bg-success' : (p.color === 'amarilla' ? 'bg-warning text-dark' : 'bg-danger')}">
                         ${p.estado}
