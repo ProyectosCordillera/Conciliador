@@ -182,30 +182,18 @@ function detectarFormato(texto) {
     }
 // ============================================
 // 📄 FORMATO 852: Espaciado (getjobid139852.txt)
-// Estructura: DD-MM-YYYY NNNN DESCRIPCIÓN... MONTO1 MONTO2 MONTO3
 // ============================================
 function parsearFormato852(texto) {
     const movimientos = [];
     const lineas = texto.split(/\r?\n/);
     
     // Regex para capturar: fecha, asiento, descripción, débito, crédito, saldo
-    // La descripción puede contener cualquier texto hasta llegar a los 3 montos finales
-    const regex = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.+)\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})$/;
+    // La descripción puede contener cualquier texto (incluyendo números)
+    // Los últimos 3 números de la línea son: Débito, Crédito, Saldo
+    const regex = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.*)\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s*$/;
     
     lineas.forEach((linea, index) => {
         if (!linea.trim()) return;
-        
-        // Ignorar líneas de encabezado
-        if (linea.includes('Impreso el:') || 
-            linea.includes('Usuario:') || 
-            linea.includes('Reporte:') ||
-            linea.includes('Página:') ||
-            linea.includes('OPEN 4 BUSINESS') ||
-            linea.includes('MOVIMIENTOS DE CUENTA') ||
-            linea.includes('COMPAÑÍA:') ||
-            linea.includes('MONEDA DEL REPORTE')) {
-            return;
-        }
         
         const match = linea.match(regex);
         if (!match) return;
