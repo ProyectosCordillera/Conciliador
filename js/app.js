@@ -12,6 +12,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const alertContainer = document.getElementById('alertContainer');
     const resultadosDiv = document.getElementById('resultados');
     const tbodyParejas = document.getElementById('tbodyParejas');
+    
+    // Elementos de información del archivo
+    const lblEmpresa = document.getElementById('lblEmpresa');
+    const lblCuenta = document.getElementById('lblCuenta');
+    const footerEmpresa = document.getElementById('footerEmpresa');
+    const footerCuenta = document.getElementById('footerCuenta');
 
     // ============================================
     // EVENTO: Seleccionar archivo
@@ -20,7 +26,59 @@ document.addEventListener('DOMContentLoaded', () => {
         btnAnalizar.disabled = !fileInput.files.length;
         alertContainer.innerHTML = '';
         resultadosDiv.style.display = 'none';
+        
+        // Si hay archivo, leer la primera línea para extraer información
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const texto = e.target.result;
+                extraerInformacionArchivo(texto);
+            };
+            reader.readAsText(file);
+        } else {
+            // Si no hay archivo, limpiar información
+            limpiarInformacionArchivo();
+        }
     });
+
+    // ============================================
+    // FUNCIONES PARA EXTRAER INFORMACIÓN DEL ARCHIVO
+    // ============================================
+    function extraerInformacionArchivo(texto) {
+        const lineas = texto.split(/\r?\n/);
+        
+        // Buscar la primera línea con datos de cuenta
+        // Formato: Cuenta Contable | Descripción | Débitos | Créditos | Saldo | 06-02-01-04-07 | INVENTARIO CUENTA PUENTE | ...
+        for (let linea of lineas) {
+            const cols = linea.split('\t');
+            
+            // Buscar línea que tenga al menos 7 columnas y la columna 5 sea una cuenta (formato XX-XX-XX-XX-XX)
+            if (cols.length >= 7 && /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(cols[5])) {
+                const cuentaNumero = cols[5];
+                const cuentaDescripcion = cols[6] || 'Sin descripción';
+                
+                // La empresa normalmente viene en el PDF pero no en TXT
+                // Por defecto usamos "Condominio Altamira Heredia S.A." pero se puede extraer de otras fuentes
+                const empresa = "Condominio Altamira Heredia S.A.";
+                
+                // Actualizar elementos del DOM
+                lblEmpresa.textContent = empresa;
+                lblCuenta.textContent = `Cuenta: ${cuentaNumero} - ${cuentaDescripcion}`;
+                footerEmpresa.textContent = empresa;
+                footerCuenta.textContent = cuentaNumero;
+                
+                break;
+            }
+        }
+    }
+
+    function limpiarInformacionArchivo() {
+        lblEmpresa.textContent = 'Sin archivo cargado';
+        lblCuenta.textContent = 'Cuenta: -';
+        footerEmpresa.textContent = 'Condominio Altamira Heredia S.A.';
+        footerCuenta.textContent = '06-02-01-04-07';
+    }
 
     // ============================================
     // EVENTO: Botón Analizar
@@ -83,6 +141,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Ocultar botón de limpiar
         btnLimpiar.style.display = 'none';
+        
+        // Limpiar información del archivo
+        limpiarInformacionArchivo();
     });
 
     // ============================================
@@ -250,58 +311,4 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Formatear montos con separadores de miles
             const fmtDebito = p.d ? p.d.debito.toLocaleString('en-US', {minimumFractionDigits: 2}) : '0.00';
-            const fmtCredito = p.c ? p.c.credito.toLocaleString('en-US', {minimumFractionDigits: 2}) : '0.00';
-            const fmtDiff = p.diff.toLocaleString('en-US', {minimumFractionDigits: 2});
-
-            // Escapar HTML para evitar problemas con caracteres especiales
-            const escapeHtml = (str) => {
-                if (!str) return '-';
-                return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            };
-
-            tr.innerHTML = `
-                <td>${p.d ? escapeHtml(p.d.fecha) : '-'}</td>
-                <td><strong>${p.d ? escapeHtml(p.d.asiento) : '-'}</strong></td>
-                <td><small>${p.d ? escapeHtml(p.d.descripcion) : '-'}</small></td>
-                <td class="text-end monto-debito">${fmtDebito}</td>
-                <td class="text-end"><strong>${fmtDiff}</strong></td>
-                <td class="text-end monto-credito">${fmtCredito}</td>
-                <td><small>${p.c ? escapeHtml(p.c.descripcion) : '-'}</small></td>
-                <td><strong>${p.c ? escapeHtml(p.c.asiento) : '-'}</strong></td>
-                <td>${p.c ? escapeHtml(p.c.fecha) : '-'}</td>
-                <td class="text-center">
-                    <span class="badge ${p.color === 'verde' ? 'bg-success' : (p.color === 'amarilla' ? 'bg-warning text-dark' : 'bg-danger')}" 
-                          data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" 
-                          title="${p.tooltip}">
-                        ${p.estado}
-                    </span>
-                </td>
-            `;
-            tbodyParejas.appendChild(tr);
-        });
-
-        // Activar tooltips de Bootstrap
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
-
-        // Mensaje de éxito/error general
-        const errores = parejas.filter(p => p.color === 'roja').length;
-        const posibles = parejas.filter(p => p.color === 'amarilla').length;
-        
-        if (errores === 0 && posibles === 0) {
-            mostrarAlerta(`✅ ¡CUENTA CUADRADA! Todas las ${parejas.length} parejas están conciliadas. Diferencia: 0.00`, 'success');
-        } else {
-            mostrarAlerta(`❌ HAY DESCUADRES. ${errores} líneas sin conciliar y ${posibles} posibles coincidencias. Pasa el mouse sobre las etiquetas para ver detalles.`, 'danger');
-        }
-    }
-
-    // ============================================
-    // 4. MOSTRAR ALERTAS
-    // ============================================
-    function mostrarAlerta(mensaje, tipo) {
-        alertContainer.innerHTML = `<div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
-            ${mensaje}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>`;
-    }
-});
+            const fmtCredito = p.c ? p.c.credito.toLocaleString('en-US', {minimumFraction
