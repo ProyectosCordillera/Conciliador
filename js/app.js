@@ -53,10 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (formato === 'altamira') {
                 movimientos = parsearFormatoAltamira(texto);
-            } else if (formato === '852') {
+            } else if (formato === 'getjobid139852') {
                 movimientos = parsearFormato852(texto);
             } else {
-                mostrarAlerta('⚠️ Formato no reconocido. Solo se aceptan formatos Altamira y 852.', 'warning');
+                mostrarAlerta('⚠️ Formato no reconocido. Solo se aceptan formatos Altamira y getjobid139852.', 'warning');
                 return;
             }
             
