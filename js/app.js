@@ -311,4 +311,58 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Formatear montos con separadores de miles
             const fmtDebito = p.d ? p.d.debito.toLocaleString('en-US', {minimumFractionDigits: 2}) : '0.00';
-            const fmtCredito = p.c ? p.c.credito.toLocaleString('en-US', {minimumFraction
+            const fmtCredito = p.c ? p.c.credito.toLocaleString('en-US', {minimumFractionDigits: 2}) : '0.00';
+            const fmtDiff = p.diff.toLocaleString('en-US', {minimumFractionDigits: 2});
+
+            // Escapar HTML para evitar problemas con caracteres especiales
+            const escapeHtml = (str) => {
+                if (!str) return '-';
+                return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            };
+
+            tr.innerHTML = `
+                <td>${p.d ? escapeHtml(p.d.fecha) : '-'}</td>
+                <td><strong>${p.d ? escapeHtml(p.d.asiento) : '-'}</strong></td>
+                <td><small>${p.d ? escapeHtml(p.d.descripcion) : '-'}</small></td>
+                <td class="text-end monto-debito">${fmtDebito}</td>
+                <td class="text-end"><strong>${fmtDiff}</strong></td>
+                <td class="text-end monto-credito">${fmtCredito}</td>
+                <td><small>${p.c ? escapeHtml(p.c.descripcion) : '-'}</small></td>
+                <td><strong>${p.c ? escapeHtml(p.c.asiento) : '-'}</strong></td>
+                <td>${p.c ? escapeHtml(p.c.fecha) : '-'}</td>
+                <td class="text-center">
+                    <span class="badge ${p.color === 'verde' ? 'bg-success' : (p.color === 'amarilla' ? 'bg-warning text-dark' : 'bg-danger')}" 
+                          data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" 
+                          title="${p.tooltip}">
+                        ${p.estado}
+                    </span>
+                </td>
+            `;
+            tbodyParejas.appendChild(tr);
+        });
+
+        // Activar tooltips de Bootstrap
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
+
+        // Mensaje de éxito/error general
+        const errores = parejas.filter(p => p.color === 'roja').length;
+        const posibles = parejas.filter(p => p.color === 'amarilla').length;
+        
+        if (errores === 0 && posibles === 0) {
+            mostrarAlerta(`✅ ¡CUENTA CUADRADA! Todas las ${parejas.length} parejas están conciliadas. Diferencia: 0.00`, 'success');
+        } else {
+            mostrarAlerta(`❌ HAY DESCUADRES. ${errores} líneas sin conciliar y ${posibles} posibles coincidencias. Pasa el mouse sobre las etiquetas para ver detalles.`, 'danger');
+        }
+    }
+
+    // ============================================
+    // 4. MOSTRAR ALERTAS
+    // ============================================
+    function mostrarAlerta(mensaje, tipo) {
+        alertContainer.innerHTML = `<div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+            ${mensaje}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
+    }
+});
