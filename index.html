@@ -3,101 +3,249 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conciliador</title>
-   <!-- Bootstrap 5 CSS -->
+    <title>Conciliador - Cuenta Puente</title>
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Nuestro CSS personalizado (AGREGA ESTA LÍNEA) -->
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <!-- Nuestro CSS personalizado -->
     <link href="css/style.css" rel="stylesheet">
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
 
-<div class="container py-4">
-    <!-- Encabezado y Carga de Archivo -->
-    <div class="card card-shadow mb-4">
-        <div class="card-header bg-primary text-white">
-            <h3 class="mb-0"> CONCILIADOR</h3>
-        </div>
-        <div class="card-body">
-            <p class="text-muted mb-3">Sube el archivo <strong>.txt</strong>Monta el Archivo para analizarlo</p>
-           <div class="row g-3 align-items-end">
-    <div class="col-md-6">
-        <input type="file" id="fileInput" class="form-control" accept=".txt">
-    </div>
-    <div class="col-md-3">
-        <button id="btnAnalizar" class="btn btn-primary w-100" disabled>🔎 Analizar</button>
-    </div>
-    <div class="col-md-3">
-        <button id="btnLimpiar" class="btn btn-outline-secondary w-100" style="display: none;">🧹 Limpiar</button>
-    </div>
-</div>
-            <div id="alertContainer" class="mt-3"></div>
-        </div>
-    </div>
-
-    <!-- Sección de Resultados (Oculta al inicio) -->
-    <div id="resultados" style="display: none;">
-        
-        <!-- Tarjetas de Resumen -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="card text-white bg-success card-shadow text-center py-3">
-                    <h6 class="mb-1">TOTAL DÉBITOS</h6>
-                    <h2 class="mb-0" id="lblDebitos">0.00</h2>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card text-white bg-danger card-shadow text-center py-3">
-                    <h6 class="mb-1">TOTAL CRÉDITOS</h6>
-                    <h2 class="mb-0" id="lblCreditos">0.00</h2>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card text-white bg-secondary card-shadow text-center py-3" id="cardDiferencia">
-                    <h6 class="mb-1">DIFERENCIA GLOBAL</h6>
-                    <h2 class="mb-0" id="lblDiferencia">0.00</h2>
-                </div>
+    <!-- ============================================ -->
+    <!-- ENCABEZADO (NAVBAR) -->
+    <!-- ============================================ -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <i class="bi bi-calculator-fill fs-3 me-2 text-warning"></i>
+                <span class="fw-bold">Conciliador Cuenta Puente</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">
+                            <i class="bi bi-house-door-fill me-1"></i>Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="alert('Sistema de Conciliación de Cuenta Puente\\nVersión 1.0\\nCondominio Altamira Heredia S.A.')">
+                            <i class="bi bi-info-circle-fill me-1"></i>Acerca de
+                        </a>
+                    </li>
+                </ul>
             </div>
         </div>
+    </nav>
 
-        <!-- Tabla de Resultados -->
-        <div class="card card-shadow">
-            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Emparejamiento Débitos vs Créditos (<span id="lblTotalParejas">0</span> parejas)</h5>
-                <span class="badge bg-info">📊 Orden: Monto Ascendente</span>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0" id="tablaParejas">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Fecha Débito</th>
-                                <th>Asiento Débito</th>
-                                <th>Descripción Débito</th>
-                                <th class="text-end">Monto Débito</th>
-                                <th class="text-end">Diferencia</th>
-                                <th class="text-end">Monto Crédito</th>
-                                <th>Descripción Crédito</th>
-                                <th>Asiento Crédito</th>
-                                <th>Fecha Crédito</th>
-                                <th class="text-center">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbodyParejas">
-                            <!-- Aquí JavaScript inyectará las filas en el Paso 4 -->
-                        </tbody>
-                    </table>
-                </div>
+    <!-- Banner informativo -->
+    <div class="bg-primary text-white py-2">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <small>
+                    <i class="bi bi-building me-1"></i>
+                    <strong>Condominio Altamira Heredia S.A.</strong> - Open 4 Business
+                </small>
+                <small>
+                    <i class="bi bi-calendar3 me-1"></i>
+                    <span id="fechaActual"></span>
+                </small>
             </div>
         </div>
     </div>
-</div>
 
- <!-- Bootstrap JS -->
+    <!-- ============================================ -->
+    <!-- CONTENIDO PRINCIPAL -->
+    <!-- ============================================ -->
+    <main class="flex-grow-1">
+        <div class="container py-4">
+            
+            <!-- Encabezado y Carga de Archivo -->
+            <div class="card card-shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>CONCILIADOR</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-upload me-1"></i>
+                        Sube el archivo <strong>.txt</strong> exportado desde Open 4 Business. El sistema emparejará automáticamente Débitos contra Créditos.
+                    </p>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-6">
+                            <label for="fileInput" class="form-label fw-bold">
+                                <i class="bi bi-folder2-open me-1"></i>Seleccionar archivo:
+                            </label>
+                            <input type="file" id="fileInput" class="form-control" accept=".txt">
+                        </div>
+                        <div class="col-md-3">
+                            <button id="btnAnalizar" class="btn btn-primary w-100" disabled>
+                                <i class="bi bi-search me-1"></i>Analizar
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button id="btnLimpiar" class="btn btn-outline-secondary w-100" style="display: none;">
+                                <i class="bi bi-eraser-fill me-1"></i>Limpiar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="alertContainer" class="mt-3"></div>
+                </div>
+            </div>
+
+            <!-- Sección de Resultados (Oculta al inicio) -->
+            <div id="resultados" style="display: none;">
+                
+                <!-- Tarjetas de Resumen -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card text-white bg-success card-shadow text-center py-3">
+                            <h6 class="mb-1"><i class="bi bi-arrow-down-circle me-1"></i>TOTAL DÉBITOS</h6>
+                            <h2 class="mb-0" id="lblDebitos">0.00</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-white bg-danger card-shadow text-center py-3">
+                            <h6 class="mb-1"><i class="bi bi-arrow-up-circle me-1"></i>TOTAL CRÉDITOS</h6>
+                            <h2 class="mb-0" id="lblCreditos">0.00</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-white bg-secondary card-shadow text-center py-3" id="cardDiferencia">
+                            <h6 class="mb-1"><i class="bi bi-dash-square me-1"></i>DIFERENCIA GLOBAL</h6>
+                            <h2 class="mb-0" id="lblDiferencia">0.00</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Resultados -->
+                <div class="card card-shadow">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-table me-2"></i>Emparejamiento Débitos vs Créditos 
+                            (<span id="lblTotalParejas">0</span> parejas)
+                        </h5>
+                        <span class="badge bg-info"><i class="bi bi-sort-down me-1"></i>Orden: Monto Ascendente</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" id="tablaParejas">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Fecha Débito</th>
+                                        <th>Asiento Débito</th>
+                                        <th>Descripción Débito</th>
+                                        <th class="text-end">Monto Débito</th>
+                                        <th class="text-end">Diferencia</th>
+                                        <th class="text-end">Monto Crédito</th>
+                                        <th>Descripción Crédito</th>
+                                        <th>Asiento Crédito</th>
+                                        <th>Fecha Crédito</th>
+                                        <th class="text-center">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbodyParejas">
+                                    <!-- Aquí JavaScript inyectará las filas -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ============================================ -->
+    <!-- PIE DE PÁGINA (FOOTER) -->
+    <!-- ============================================ -->
+    <footer class="bg-dark text-white py-4 mt-auto">
+        <div class="container">
+            <div class="row">
+                <!-- Columna 1: Información de la empresa -->
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <h6 class="fw-bold text-warning">
+                        <i class="bi bi-building me-2"></i>Condominio Altamira Heredia S.A.
+                    </h6>
+                    <p class="small mb-0 text-light">
+                        Sistema de Conciliación de Cuenta Puente<br>
+                        Cuenta: 06-02-01-04-07 - Inventario
+                    </p>
+                </div>
+
+                <!-- Columna 2: Información técnica -->
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <h6 class="fw-bold text-warning">
+                        <i class="bi bi-gear-fill me-2"></i>Información Técnica
+                    </h6>
+                    <ul class="list-unstyled small mb-0 text-light">
+                        <li><i class="bi bi-check-circle me-1 text-success"></i>Versión: 1.0</li>
+                        <li><i class="bi bi-filetype-txt me-1 text-info"></i>Formato: TXT (Tabulado)</li>
+                        <li><i class="bi bi-shield-check me-1 text-info"></i>Procesamiento local (sin servidor)</li>
+                    </ul>
+                </div>
+
+                <!-- Columna 3: Contacto y derechos -->
+                <div class="col-md-4">
+                    <h6 class="fw-bold text-warning">
+                        <i class="bi bi-clock-fill me-2"></i>Fecha y Derechos
+                    </h6>
+                    <p class="small mb-1 text-light">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        <span id="fechaFooter"></span>
+                    </p>
+                    <p class="small mb-0 text-light">
+                        <i class="bi bi-c-circle me-1"></i> 2026 Todos los derechos reservados
+                    </p>
+                </div>
+            </div>
+
+            <!-- Línea divisoria y créditos -->
+            <hr class="my-3 border-secondary">
+            <div class="text-center">
+                <small class="text-light">
+                    <i class="bi bi-code-slash me-1"></i>
+                    Desarrollado con <i class="bi bi-heart-fill text-danger"></i> usando HTML, CSS y JavaScript
+                    <span class="mx-2">|</span>
+                    <i class="bi bi-bootstrap-fill me-1 text-primary"></i>Bootstrap 5
+                </small>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Botón de "Volver arriba" -->
+    <button id="btnTop" class="btn btn-primary btn-floating shadow" style="display: none; position: fixed; bottom: 30px; right: 30px; z-index: 1000; border-radius: 50%; width: 50px; height: 50px;" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+        <i class="bi bi-arrow-up"></i>
+    </button>
+
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Nuestro JavaScript (Agrega esta línea) -->
+    <!-- Nuestro JavaScript -->
     <script src="js/app.js"></script>
+
+    <!-- Script para mostrar la fecha actual -->
+    <script>
+        // Mostrar fecha actual en el banner y footer
+        const fecha = new Date();
+        const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const fechaFormateada = fecha.toLocaleDateString('es-ES', opciones);
+        
+        document.getElementById('fechaActual').textContent = fechaFormateada;
+        document.getElementById('fechaFooter').textContent = fechaFormateada;
+
+        // Mostrar/ocultar botón "Volver arriba"
+        window.addEventListener('scroll', () => {
+            const btnTop = document.getElementById('btnTop');
+            if (window.scrollY > 300) {
+                btnTop.style.display = 'block';
+            } else {
+                btnTop.style.display = 'none';
+            }
+        });
+    </script>
 
 </body>
 </html>
