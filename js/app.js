@@ -36,41 +36,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    btnAnalizar.addEventListener('click', () => {
-        const file = fileInput.files[0];
-        if (!file) return;
+ btnAnalizar.addEventListener('click', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const texto = e.target.result;
-                
-                // Detectar formato
-                const formato = detectarFormato(texto);
-                console.log('🔍 Formato detectado:', formato);
-                
-                if (formato === 'altamira') {
-                    const movimientos = parsearFormatoAltamira(texto);
-                    
-                    if (movimientos.length === 0) {
-                        mostrarAlerta('⚠️ No se encontraron movimientos válidos.', 'warning');
-                        return;
-                    }
-
-                    const parejas = emparejarDebitosCreditos(movimientos);
-                    renderizarResultados(movimientos, parejas);
-                    btnLimpiar.style.display = 'block';
-                    mostrarAlerta(`✅ Análisis completado. Se procesaron ${movimientos.length} movimientos.`, 'success');
-                } else {
-                    mostrarAlerta('⚠️ Formato no reconocido. Solo se acepta el formato tabulado (tipo altamira.txt) por ahora.', 'warning');
-                }
-            } catch (error) {
-                console.error(error);
-                mostrarAlerta(`❌ Error: ${error.message}`, 'danger');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const texto = e.target.result;
+            
+            // Detectar formato
+            const formato = detectarFormato(texto);
+            console.log('🔍 Formato detectado:', formato);
+            
+            let movimientos = [];
+            
+            if (formato === 'altamira') {
+                movimientos = parsearFormatoAltamira(texto);
+            } else if (formato === '852') {
+                movimientos = parsearFormato852(texto);
+            } else {
+                mostrarAlerta('⚠️ Formato no reconocido. Solo se aceptan formatos Altamira y 852.', 'warning');
+                return;
             }
-        };
-        reader.readAsText(file);
-    });
+            
+            if (movimientos.length === 0) {
+                mostrarAlerta('⚠️ No se encontraron movimientos válidos.', 'warning');
+                return;
+            }
+
+            const parejas = emparejarDebitosCreditos(movimientos);
+            renderizarResultados(movimientos, parejas);
+            btnLimpiar.style.display = 'block';
+            mostrarAlerta(`✅ Análisis completado. Se procesaron ${movimientos.length} movimientos.`, 'success');
+            
+        } catch (error) {
+            console.error(error);
+            mostrarAlerta(`❌ Error: ${error.message}`, 'danger');
+        }
+    };
+    reader.readAsText(file);
+});
 
     btnLimpiar.addEventListener('click', () => {
         fileInput.value = '';
@@ -93,22 +99,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // 🕵️ DETECTAR FORMATO
     // ============================================
-    function detectarFormato(texto) {
-        const lineas = texto.split(/\r?\n/);
+   // ============================================
+// 🕵️ FUNCIÓN DETECTIVE: Detecta el formato
+// ============================================
+function detectarFormato(texto) {
+    const lineas = texto.split(/\r?\n/);
+    
+    for (let linea of lineas) {
+        if (!linea.trim()) continue;
         
-        for (let linea of lineas) {
-            if (!linea.trim()) continue;
-            
-            const cols = linea.split('\t');
-            
-            // Si tiene "Cuenta Contable" al inicio y tiene tabs → Formato Altamira
-            if (cols[0] && cols[0].trim() === 'Cuenta Contable' && cols.length >= 11) {
-                return 'altamira';
-            }
+        // Si la línea empieza con una fecha (DD-MM-YYYY) → Formato 852 (espaciado)
+        if (/^\d{2}-\d{2}-\d{4}\s/.test(linea)) {
+            console.log('🔍 Formato detectado: 852 (Espaciado)');
+            return '852';
         }
         
-        return 'desconocido';
+        // Si la línea tiene tabs y contiene "Cuenta Contable" → Formato Altamira (tabulado)
+        if (linea.includes('\t') && linea.includes('Cuenta Contable')) {
+            console.log('🔍 Formato detectado: Altamira (Tabulado)');
+            return 'altamira';
+        }
     }
+    
+    console.log('⚠️ Formato no reconocido');
+    return 'desconocido';
+}
 
     // ============================================
     // 📄 PARSEAR FORMATO ALTAMIRA
@@ -165,7 +180,58 @@ document.addEventListener('DOMContentLoaded', () => {
         const num = parseFloat(limpio);
         return isNaN(num) ? 0 : num;
     }
-
+// ============================================
+// 📄 FORMATO 852: Espaciado (getjobid139852.txt)
+// Estructura: DD-MM-YYYY NNNN DESCRIPCIÓN... MONTO1 MONTO2 MONTO3
+// ============================================
+function parsearFormato852(texto) {
+    const movimientos = [];
+    const lineas = texto.split(/\r?\n/);
+    
+    // Regex para capturar: fecha, asiento, descripción, débito, crédito, saldo
+    // La descripción puede contener cualquier texto hasta llegar a los 3 montos finales
+    const regex = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.+)\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})$/;
+    
+    lineas.forEach((linea, index) => {
+        if (!linea.trim()) return;
+        
+        // Ignorar líneas de encabezado
+        if (linea.includes('Impreso el:') || 
+            linea.includes('Usuario:') || 
+            linea.includes('Reporte:') ||
+            linea.includes('Página:') ||
+            linea.includes('OPEN 4 BUSINESS') ||
+            linea.includes('MOVIMIENTOS DE CUENTA') ||
+            linea.includes('COMPAÑÍA:') ||
+            linea.includes('MONEDA DEL REPORTE')) {
+            return;
+        }
+        
+        const match = linea.match(regex);
+        if (!match) return;
+        
+        const fecha = match[1];
+        const asiento = match[2];
+        const descripcion = match[3].trim();
+        const debito = parsearMonto(match[4]);
+        const credito = parsearMonto(match[5]);
+        
+        // Solo agregar si tiene débito O crédito mayor a 0
+        if (debito > 0 || credito > 0) {
+            movimientos.push({
+                lineaOriginal: index + 1,
+                fecha,
+                asiento,
+                descripcion,
+                debito,
+                credito
+            });
+        }
+    });
+    
+    console.log(`✅ Formato 852: ${movimientos.length} movimientos procesados`);
+    return movimientos;
+}
     // ============================================
     // 🏢 EXTRAER INFO DE EMPRESA
     // ============================================
