@@ -188,85 +188,102 @@ document.addEventListener('DOMContentLoaded', () => {
   // ============================================
 // FUNCIÓN: PARSEAR ARCHIVO TXT (VERSIÓN INTELIGENTE)
 // ============================================
+// ============================================
+// FUNCIÓN: PARSEAR ARCHIVO TXT (AUTO-DETECCIÓN)
+// Funciona con ambos formatos sin configuración manual
+// ============================================
 function parsearArchivo(texto) {
     const lineas = texto.split(/\r?\n/);
     const movimientos = [];
 
-    // 1. LEER LA PRIMERA LÍNEA PARA DETECTAR LAS COLUMNAS
-    // Busca palabras clave como "Deb", "Haber", "Cargo", "Abono", "Fecha", etc.
-    const primeraLinea = lineas[0].split('\t');
-    const columnas = { fecha: -1, asiento: -1, descripcion: -1, debito: -1, credito: -1 };
+    // 1. DETECCIÓN AUTOMÁTICA DE FORMATO
+    let formato = 'desconocido';
+    for (let linea of lineas) {
+        if (!linea.trim()) continue;
+        
+        // Si tiene tabs y muchas columnas -> Formato Estándar (Altamira/Uruka clásico)
+        if (linea.includes('\t') && linea.split('\t').length > 8) {
+            formato = 'estandar';
+            break;
+        }
+        // Si empieza con fecha -> Formato Compacto (getjobid139852)
+        if (/^\d{2}-\d{2}-\d{4}/.test(linea.trim().substring(0, 10))) {
+            formato = 'compacto';
+            break;
+        }
+    }
 
-    primeraLinea.forEach((col, index) => {
-        const texto = col.toLowerCase().trim();
-        
-        // Detectar Fecha (busca formato dd-mm-yyyy o la palabra "fecha")
-        if (texto.includes('fecha') || /^\d{2}-\d{2}-\d{4}$/.test(texto)) {
-            if (columnas.fecha === -1) columnas.fecha = index;
-        }
-        // Detectar Asiento
-        if (texto.includes('asiento') || texto.includes('entry')) {
-            columnas.asiento = index;
-        }
-        // Detectar Descripción
-        if (texto.includes('descripci') || texto.includes('description')) {
-            columnas.descripcion = index;
-        }
-        // Detectar Débitos (acepta "deb", "debit", "cargo", "debe")
-        if (texto.includes('deb') || texto.includes('cargo') || texto.includes('debe')) {
-            columnas.debito = index;
-        }
-        // Detectar Créditos (acepta "cred", "haber", "abono")
-        if (texto.includes('cred') || texto.includes('haber') || texto.includes('abono')) {
-            columnas.credito = index;
-        }
-    });
+    // 2. PROCESAMIENTO LÍNEA POR LÍNEA
+    for (let i = 0; i < lineas.length; i++) {
+        const linea = lineas[i].trim();
+        if (!linea) continue;
 
-    console.log(' Columnas detectadas:', columnas);
+        // Ignorar líneas de resumen, encabezados repetidos y totales
+        if (linea.includes('Total Saldo Anterior') ||
+            linea.includes('Total Acumulado') ||
+            linea.includes('Saldo Anterior:') ||
+            linea.includes('Cuenta Contable') ||
+            linea.includes('Fecha Asiento Descripción') ||
+            linea.includes('Total:')) {
+            continue;
+        }
 
-    // Si no detectó las columnas principales, usar valores por defecto (respaldo)
-    if (columnas.debito === -1) columnas.debito = 9;
-    if (columnas.credito === -1) columnas.credito = 10;
-    if (columnas.fecha === -1) columnas.fecha = 5;
-    if (columnas.asiento === -1) columnas.asiento = 6;
-    if (columnas.descripcion === -1) columnas.descripcion = 7;
+        let fecha, asiento, descripcion, debito, credito;
 
-    // 2. PROCESAR EL RESTO DE LAS LÍNEAS USANDO LAS COLUMNAS DETECTADAS
-    for (let i = 1; i < lineas.length; i++) {
-        const linea = lineas[i];
-        const cols = linea.split('\t');
-        
-        if (cols.length < 5) continue;
-        
-        const fechaStr = cols[columnas.fecha] ? cols[columnas.fecha].trim() : '';
-        if (!/^\d{2}-\d{2}-\d{4}$/.test(fechaStr)) continue;
-        
-        const asiento = cols[columnas.asiento] ? cols[columnas.asiento].trim() : '';
-        const descripcion = cols[columnas.descripcion] ? cols[columnas.descripcion].trim() : '';
-        const debito = parsearMonto(cols[columnas.debito]);
-        const credito = parsearMonto(cols[columnas.credito]);
-        
+        if (formato === 'estandar') {
+            // Formato Tabulado Largo: Cuenta | Desc | Deb | Cred | Saldo | FECHA | ASIENTO | DESC_MOV | ... | MONTO_DEB | MONTO_CRED | ...
+            const cols = linea.split('\t');
+            if (cols.length < 10) continue;
+
+            fecha = cols[5]?.trim();
+            asiento = cols[6]?.trim();
+            descripcion = cols[7]?.trim();
+            debito = parsearMonto(cols[9]);
+            credito = parsearMonto(cols[10]);
+        }
+        else if (formato === 'compacto') {
+            // Formato Compacto (Espaciado): FECHA | ASIENTO | DESCRIPCIÓN... | GRUPO | DÉBITO | CRÉDITO | SALDO
+            const partes = linea.split(/\s+/);
+            if (partes.length < 6) continue;
+
+            fecha = partes[0];
+            asiento = partes[1];
+            // Los últimos 3 valores son: Débito, Crédito, Saldo
+            debito = parsearMonto(partes[partes.length - 3]);
+            credito = parsearMonto(partes[partes.length - 2]);
+            // La descripción es todo lo que está entre el Asiento y los montos
+            descripcion = partes.slice(2, -3).join(' ');
+        }
+        else {
+            continue; // Formato no reconocido, saltar línea
+        }
+
+        // Validar que sea una fecha real
+        if (!fecha || !/^\d{2}-\d{2}-\d{4}$/.test(fecha)) continue;
+
+        // Solo guardar si tiene movimiento real (débito o crédito > 0)
         if (debito > 0 || credito > 0) {
             movimientos.push({
                 lineaOriginal: i + 1,
-                fecha: fechaStr,
-                asiento: asiento,
-                descripcion: descripcion,
-                debito: debito,
-                credito: credito
+                fecha,
+                asiento: asiento || '-',
+                descripcion: descripcion || '-',
+                debito,
+                credito
             });
         }
     }
-    
+
     return movimientos;
 }
 
-    function parsearMonto(valor) {
-        if (!valor) return 0;
-        const limpio = valor.trim().replace(/,/g, '');
-        const num = parseFloat(limpio);
-        return isNaN(num) ? 0 : num;
-    }
+// Función auxiliar para limpiar y convertir montos (MANTENER ESTA SI YA LA TIENES)
+function parsearMonto(valor) {
+    if (!valor) return 0;
+    const limpio = valor.toString().trim().replace(/,/g, '');
+    const num = parseFloat(limpio);
+    return isNaN(num) ? 0 : num;
+}
 
     // ============================================
     // FUNCIÓN: MOTOR DE EMPAREJAMIENTO
