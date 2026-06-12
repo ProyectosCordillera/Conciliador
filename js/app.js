@@ -185,37 +185,81 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // FUNCIÓN: PARSEAR ARCHIVO TXT
     // ============================================
-    function parsearArchivo(texto) {
-        const lineas = texto.split(/\r?\n/);
-        const movimientos = [];
+  // ============================================
+// FUNCIÓN: PARSEAR ARCHIVO TXT (VERSIÓN INTELIGENTE)
+// ============================================
+function parsearArchivo(texto) {
+    const lineas = texto.split(/\r?\n/);
+    const movimientos = [];
 
-        lineas.forEach((linea, index) => {
-            const cols = linea.split('\t');
-            
-            if (cols.length < 11) return;
-            
-            const fechaStr = cols[5] ? cols[5].trim() : '';
-            if (!/^\d{2}-\d{2}-\d{4}$/.test(fechaStr)) return;
-            
-            const asiento = cols[6] ? cols[6].trim() : '';
-            const descripcion = cols[7] ? cols[7].trim() : '';
-            const debito = parsearMonto(cols[9]);
-            const credito = parsearMonto(cols[10]);
-            
-            if (debito > 0 || credito > 0) {
-                movimientos.push({
-                    lineaOriginal: index + 1,
-                    fecha: fechaStr,
-                    asiento: asiento,
-                    descripcion: descripcion,
-                    debito: debito,
-                    credito: credito
-                });
-            }
-        });
+    // 1. LEER LA PRIMERA LÍNEA PARA DETECTAR LAS COLUMNAS
+    // Busca palabras clave como "Deb", "Haber", "Cargo", "Abono", "Fecha", etc.
+    const primeraLinea = lineas[0].split('\t');
+    const columnas = { fecha: -1, asiento: -1, descripcion: -1, debito: -1, credito: -1 };
+
+    primeraLinea.forEach((col, index) => {
+        const texto = col.toLowerCase().trim();
         
-        return movimientos;
+        // Detectar Fecha (busca formato dd-mm-yyyy o la palabra "fecha")
+        if (texto.includes('fecha') || /^\d{2}-\d{2}-\d{4}$/.test(texto)) {
+            if (columnas.fecha === -1) columnas.fecha = index;
+        }
+        // Detectar Asiento
+        if (texto.includes('asiento') || texto.includes('entry')) {
+            columnas.asiento = index;
+        }
+        // Detectar Descripción
+        if (texto.includes('descripci') || texto.includes('description')) {
+            columnas.descripcion = index;
+        }
+        // Detectar Débitos (acepta "deb", "debit", "cargo", "debe")
+        if (texto.includes('deb') || texto.includes('cargo') || texto.includes('debe')) {
+            columnas.debito = index;
+        }
+        // Detectar Créditos (acepta "cred", "haber", "abono")
+        if (texto.includes('cred') || texto.includes('haber') || texto.includes('abono')) {
+            columnas.credito = index;
+        }
+    });
+
+    console.log(' Columnas detectadas:', columnas);
+
+    // Si no detectó las columnas principales, usar valores por defecto (respaldo)
+    if (columnas.debito === -1) columnas.debito = 9;
+    if (columnas.credito === -1) columnas.credito = 10;
+    if (columnas.fecha === -1) columnas.fecha = 5;
+    if (columnas.asiento === -1) columnas.asiento = 6;
+    if (columnas.descripcion === -1) columnas.descripcion = 7;
+
+    // 2. PROCESAR EL RESTO DE LAS LÍNEAS USANDO LAS COLUMNAS DETECTADAS
+    for (let i = 1; i < lineas.length; i++) {
+        const linea = lineas[i];
+        const cols = linea.split('\t');
+        
+        if (cols.length < 5) continue;
+        
+        const fechaStr = cols[columnas.fecha] ? cols[columnas.fecha].trim() : '';
+        if (!/^\d{2}-\d{2}-\d{4}$/.test(fechaStr)) continue;
+        
+        const asiento = cols[columnas.asiento] ? cols[columnas.asiento].trim() : '';
+        const descripcion = cols[columnas.descripcion] ? cols[columnas.descripcion].trim() : '';
+        const debito = parsearMonto(cols[columnas.debito]);
+        const credito = parsearMonto(cols[columnas.credito]);
+        
+        if (debito > 0 || credito > 0) {
+            movimientos.push({
+                lineaOriginal: i + 1,
+                fecha: fechaStr,
+                asiento: asiento,
+                descripcion: descripcion,
+                debito: debito,
+                credito: credito
+            });
+        }
     }
+    
+    return movimientos;
+}
 
     function parsearMonto(valor) {
         if (!valor) return 0;
