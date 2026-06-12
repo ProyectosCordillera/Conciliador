@@ -42,54 +42,59 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-  // ============================================
+// ============================================
 // FUNCIONES PARA EXTRAER INFORMACIÓN DEL ARCHIVO
 // ============================================
 function extraerInformacionArchivo(texto) {
     const lineas = texto.split(/\r?\n/);
-    let cuentaNumero = '';
-    let cuentaDescripcion = '';
-    let empresa = '';
     
-    // Buscar en la primera línea la información de la cuenta
+    // La PRIMERA línea tiene la información de la cuenta
     // Formato: Cuenta Contable | Descripción | Débitos | Créditos | Saldo | NUMERO_CUENTA | DESCRIPCION_CUENTA | ...
-    if (lineas.length > 0) {
-        const primeraLinea = lineas[0].split('\t');
-        
-        // La columna 5 es el número de cuenta (ej: 12-02-01-04-05)
-        if (primeraLinea.length > 5 && /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(primeraLinea[5])) {
-            cuentaNumero = primeraLinea[5];
-        }
-        
-        // La columna 6 es la descripción de la cuenta (ej: INVENTARIO CUENTA PUENTE)
-        if (primeraLinea.length > 6) {
-            cuentaDescripcion = primeraLinea[6];
-        }
+    if (lineas.length === 0) return;
+    
+    const primeraLinea = lineas[0].split('\t');
+    
+    // La columna 5 (índice 5) es el número de cuenta
+    // Ejemplo: 12-02-01-04-05 o 06-02-01-04-07
+    let cuentaNumero = '';
+    if (primeraLinea.length > 5 && /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(primeraLinea[5].trim())) {
+        cuentaNumero = primeraLinea[5].trim();
     }
     
-    // Intentar extraer el nombre de la compañía de las descripciones
-    // Buscamos patrones como "BODEGA URUKA POINT", "CONDOMINIO ALTAMIRA", etc.
-    for (let linea of lineas) {
-        if (linea.includes('BODEGA URUKA POINT')) {
+    // La columna 6 (índice 6) es la descripción de la cuenta
+    // Ejemplo: INVENTARIO CUENTA PUENTE
+    let cuentaDescripcion = '';
+    if (primeraLinea.length > 6) {
+        cuentaDescripcion = primeraLinea[6].trim();
+    }
+    
+    // Intentar extraer el nombre de la empresa de las descripciones de los movimientos
+    let empresa = 'Empresa No Identificada';
+    
+    for (let i = 1; i < Math.min(20, lineas.length); i++) {
+        const linea = lineas[i];
+        
+        // Buscar patrones específicos en las descripciones
+        if (linea.includes('BODEGA URUKA POINT') || linea.includes('URUKA POINT')) {
             empresa = 'Uruka Point';
             break;
-        } else if (linea.includes('CONDOMINIO VERTICAL HORIZONTAL RESIDENCIAL TORRE AZUR')) {
+        } else if (linea.includes('CONDOMINIO VERTICAL HORIZONTAL RESIDENCIAL TORRE AZUR') || 
+                   linea.includes('TORRE AZUR')) {
             empresa = 'Torre Azur';
             break;
-        } else if (linea.includes('CONDOMINIO ALTAMIRA') || linea.includes('HORIZ. RESID. ALTAMIRA')) {
+        } else if (linea.includes('CONDOMINIO VERTICAL  HORIZ. RESID. ALTAMIRA') || 
+                   linea.includes('ALTAMIRA')) {
             empresa = 'Condominio Altamira Heredia S.A.';
             break;
         }
     }
     
-    // Si no encontramos la empresa, usar un valor genérico basado en la cuenta
-    if (!empresa) {
+    // Si no encontramos la empresa, usar valor por defecto basado en la cuenta
+    if (empresa === 'Empresa No Identificada') {
         if (cuentaNumero.startsWith('12-')) {
             empresa = 'Uruka Point';
         } else if (cuentaNumero.startsWith('06-')) {
             empresa = 'Condominio Altamira Heredia S.A.';
-        } else {
-            empresa = 'Empresa Genérica';
         }
     }
     
