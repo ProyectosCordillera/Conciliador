@@ -52,13 +52,74 @@ body {
     font-weight: 600;
 }
 
-/* ===== RESPONSIVE: Ajustes para móviles ===== */
+/* ===== FOOTER MEJORADO ===== */
+footer {
+    border-top: 3px solid #ffc107;
+}
+
+footer h6 {
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+/* ===== BOTÓN FLOTANTE "VOLVER ARRIBA" ===== */
+#btnTop {
+    transition: all 0.3s ease;
+    opacity: 0.9;
+}
+
+#btnTop:hover {
+    opacity: 1;
+    transform: translateY(-5px);
+}
+
+/* ===== NAVBAR MEJORADO ===== */
+.navbar-brand:hover {
+    color: #ffc107 !important;
+}
+
+.navbar .nav-link {
+    transition: color 0.3s ease;
+}
+
+.navbar .nav-link:hover {
+    color: #ffc107 !important;
+}
+
+/* ===== BANNER INFORMATIVO ===== */
+.bg-primary {
+    background: linear-gradient(90deg, #0d6efd 0%, #0a58ca 100%) !important;
+}
+
+/* ===== TARJETAS CON EFECTO HOVER ===== */
+.card {
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+/* ===== RESPONSIVE PARA MÓVILES (TODO EN UN SOLO BLOQUE) ===== */
 @media (max-width: 768px) {
+    /* Tarjetas */
     .card-body h2 {
         font-size: 1.5rem;
     }
     
+    /* Tablas */
     table {
         font-size: 0.85rem;
+    }
+    
+    /* Footer */
+    footer .col-md-4 {
+        text-align: center;
+    }
+    
+    /* Navbar */
+    .navbar-brand {
+        font-size: 1rem;
     }
 }
