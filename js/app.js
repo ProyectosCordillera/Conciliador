@@ -1,6 +1,6 @@
 // js/app.js - Lógica del Analizador de Cuenta Puente
 // Estructura fija del TXT de Open 4 Business:
-// Col 5: Fecha | Col 6: Asiento | Col 7: Descripción | Col 9: Débito | Col 10: Crédito
+// Col 5: Cuenta | Col 6: Descripción Cuenta | Col 9: Débito | Col 10: Crédito
 
 document.addEventListener('DOMContentLoaded', () => {
     // ============================================
@@ -49,18 +49,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const lineas = texto.split(/\r?\n/);
         
         // Buscar la primera línea con datos de cuenta
-        // Formato: Cuenta Contable | Descripción | Débitos | Créditos | Saldo | 06-02-01-04-07 | INVENTARIO CUENTA PUENTE | ...
         for (let linea of lineas) {
             const cols = linea.split('\t');
             
-            // Buscar línea que tenga al menos 7 columnas y la columna 5 sea una cuenta (formato XX-XX-XX-XX-XX)
+            // Buscar línea que tenga al menos 7 columnas y la columna 5 sea una cuenta
             if (cols.length >= 7 && /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(cols[5])) {
                 const cuentaNumero = cols[5];
                 const cuentaDescripcion = cols[6] || 'Sin descripción';
                 
-                // La empresa normalmente viene en el PDF pero no en TXT
-                // Por defecto usamos "Condominio Altamira Heredia S.A." pero se puede extraer de otras fuentes
-                const empresa = "Condominio Altamira Heredia S.A.";
+                // Extraer nombre de la compañía de las primeras líneas
+                let empresa = 'Condominio Altamira Heredia S.A.'; // Default
+                
+                for (let i = 0; i < Math.min(10, lineas.length); i++) {
+                    const lineaSuperior = lineas[i].trim();
+                    if (lineaSuperior.includes('S.A.') || lineaSuperior.includes('S.A.')) {
+                        const match = lineaSuperior.match(/^(.+?)(?:\s+(?:OPEN|BUSINESS|MOVIMIENTOS))/i);
+                        if (match && match[1].trim().length > 5) {
+                            empresa = match[1].trim();
+                            break;
+                        }
+                    }
+                }
                 
                 // Actualizar elementos del DOM
                 lblEmpresa.textContent = empresa;
@@ -68,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 footerEmpresa.textContent = empresa;
                 footerCuenta.textContent = cuentaNumero;
                 
-                break;
+                return;
             }
         }
     }
@@ -159,21 +168,48 @@ document.addEventListener('DOMContentLoaded', () => {
             // Necesitamos al menos 11 columnas para tener todos los datos
             if (cols.length < 11) return;
             
-            // La fecha SIEMPRE está en la columna 5 (formato dd-mm-yyyy)
-            const fechaStr = cols[5] ? cols[5].trim() : '';
-            if (!/^\d{2}-\d{2}-\d{4}$/.test(fechaStr)) return;
+            // La fecha SIEMPRE está en la columna 0 o 5 (formato dd-mm-yyyy)
+            let fechaStr = '';
+            for (let i = 0; i < Math.min(10, cols.length); i++) {
+                if (/^\d{2}-\d{2}-\d{4}$/.test(cols[i].trim())) {
+                    fechaStr = cols[i].trim();
+                    break;
+                }
+            }
             
-            // El asiento SIEMPRE está en la columna 6
-            const asiento = cols[6] ? cols[6].trim() : '';
+            if (!fechaStr) return;
             
-            // La descripción SIEMPRE está en la columna 7
-            const descripcion = cols[7] ? cols[7].trim() : '';
+            // El asiento está después de la fecha
+            let asiento = '';
+            let descIndex = -1;
+            for (let i = 0; i < cols.length; i++) {
+                if (cols[i].trim() === fechaStr && i + 1 < cols.length) {
+                    asiento = cols[i + 1].trim();
+                    if (i + 2 < cols.length) {
+                        descIndex = i + 2;
+                    }
+                    break;
+                }
+            }
             
-            // El monto débito SIEMPRE está en la columna 9
-            const debito = parsearMonto(cols[9]);
+            // La descripción está después del asiento
+            const descripcion = descIndex > 0 && cols[descIndex] ? cols[descIndex].trim() : '';
             
-            // El monto crédito SIEMPRE está en la columna 10
-            const credito = parsearMonto(cols[10]);
+            // Buscar montos (débito y crédito)
+            let debito = 0;
+            let credito = 0;
+            
+            for (let i = 0; i < cols.length; i++) {
+                const val = cols[i].trim();
+                if (/^\d{1,3}(,\d{3})*\.\d{2}$/.test(val)) {
+                    const num = parseFloat(val.replace(/,/g, ''));
+                    if (debito === 0 && num > 0) {
+                        debito = num;
+                    } else if (credito === 0) {
+                        credito = num;
+                    }
+                }
+            }
             
             // Solo agregar si tiene débito O crédito mayor a 0
             if (debito > 0 || credito > 0) {
