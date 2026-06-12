@@ -1,4 +1,5 @@
-// js/app.js - Analizador de Cuenta Puente (Versión Dual Corregida)
+// js/app.js - Analizador de Cuenta Puente
+// Soporta 2 formatos: Tabulado (con TABs) y 852 (con espacios)
 
 document.addEventListener('DOMContentLoaded', () => {
     // ============================================
@@ -55,13 +56,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 let movimientos = [];
                 
-                // ⚠️ IMPORTANTE: Los nombres deben coincidir con detectarFormato()
-                if (formato === 'altamira') {
-                    movimientos = parsearFormatoAltamira(texto);
+                if (formato === 'tabulado') {
+                    movimientos = parsearFormatoTabulado(texto);
                 } else if (formato === '852') {
                     movimientos = parsearFormato852(texto);
                 } else {
-                    mostrarAlerta('⚠️ Formato no reconocido. Solo se aceptan Altamira y 852.', 'warning');
+                    mostrarAlerta('⚠️ Formato no reconocido. Solo se aceptan formatos Tabulado y 852.', 'warning');
                     return;
                 }
                 
@@ -113,25 +113,28 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let linea of lineas) {
             if (!linea.trim()) continue;
             
-            // Si la línea empieza con fecha (DD-MM-YYYY) → Formato 852
+            // Si la línea empieza con fecha (DD-MM-YYYY) → Formato 852 (espaciado)
             if (/^\d{2}-\d{2}-\d{4}\s/.test(linea)) {
+                console.log('🔍 Formato detectado: 852 (Espaciado)');
                 return '852';
             }
             
-            // Si tiene tabs y "Cuenta Contable" → Formato Altamira
+            // Si la línea tiene tabs y contiene "Cuenta Contable" → Formato Tabulado
             if (linea.includes('\t') && linea.includes('Cuenta Contable')) {
-                return 'altamira';
+                console.log('🔍 Formato detectado: Tabulado');
+                return 'tabulado';
             }
         }
         
+        console.log('⚠️ Formato no reconocido');
         return 'desconocido';
     }
 
     // ============================================
-    // 📄 PARSER 1: FORMATO ALTAMIRA (Tabulado)
-    // Estructura: Cuenta\tDesc\tDeb\tCred\tSaldo\tFECHA\tASIENTO\tDESC_MOV\t\tMONTO_DEB\tMONTO_CRED\t...
+    // 📄 PARSER 1: FORMATO TABULADO (con TABs)
+    // Funciona con: Altamira, Uruka, Torre Azur, etc.
     // ============================================
-    function parsearFormatoAltamira(texto) {
+    function parsearFormatoTabulado(texto) {
         const lineas = texto.split(/\r?\n/);
         const movimientos = [];
 
@@ -140,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const cols = linea.split('\t');
             
-            // Necesitamos al menos 11 columnas
             if (cols.length < 11) return;
             
             // La fecha está en columna 5
@@ -166,19 +168,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        console.log(`✅ Formato Altamira: ${movimientos.length} movimientos`);
+        console.log(`✅ Formato Tabulado: ${movimientos.length} movimientos`);
         return movimientos;
     }
 
     // ============================================
-    // 📄 PARSER 2: FORMATO 852 (Espaciado)
-    // Estructura: DD-MM-YYYY NNNN DESCRIPCIÓN... DÉBITO CRÉDITO SALDO
+    // 📄 PARSER 2: FORMATO 852 (con espacios)
     // ============================================
     function parsearFormato852(texto) {
         const movimientos = [];
         const lineas = texto.split(/\r?\n/);
         
-        // Regex: fecha, asiento, descripción (greedy), 3 montos al final
         const regex = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.+?)\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})\s*$/;
         
         lineas.forEach((linea, index) => {
