@@ -42,53 +42,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ============================================
-    // FUNCIONES PARA EXTRAER INFORMACIÓN DEL ARCHIVO
-    // ============================================
-    function extraerInformacionArchivo(texto) {
-        const lineas = texto.split(/\r?\n/);
+  // ============================================
+// FUNCIONES PARA EXTRAER INFORMACIÓN DEL ARCHIVO
+// ============================================
+function extraerInformacionArchivo(texto) {
+    const lineas = texto.split(/\r?\n/);
+    let cuentaNumero = '';
+    let cuentaDescripcion = '';
+    let empresa = '';
+    
+    // Buscar en la primera línea la información de la cuenta
+    // Formato: Cuenta Contable | Descripción | Débitos | Créditos | Saldo | NUMERO_CUENTA | DESCRIPCION_CUENTA | ...
+    if (lineas.length > 0) {
+        const primeraLinea = lineas[0].split('\t');
         
-        // Buscar la primera línea con datos de cuenta
-        for (let linea of lineas) {
-            const cols = linea.split('\t');
-            
-            // Buscar línea que tenga al menos 7 columnas y la columna 5 sea una cuenta
-            if (cols.length >= 7 && /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(cols[5])) {
-                const cuentaNumero = cols[5];
-                const cuentaDescripcion = cols[6] || 'Sin descripción';
-                
-                // Extraer nombre de la compañía de las primeras líneas
-                let empresa = 'Condominio Altamira Heredia S.A.'; // Default
-                
-                for (let i = 0; i < Math.min(10, lineas.length); i++) {
-                    const lineaSuperior = lineas[i].trim();
-                    if (lineaSuperior.includes('S.A.') || lineaSuperior.includes('S.A.')) {
-                        const match = lineaSuperior.match(/^(.+?)(?:\s+(?:OPEN|BUSINESS|MOVIMIENTOS))/i);
-                        if (match && match[1].trim().length > 5) {
-                            empresa = match[1].trim();
-                            break;
-                        }
-                    }
-                }
-                
-                // Actualizar elementos del DOM
-                lblEmpresa.textContent = empresa;
-                lblCuenta.textContent = `Cuenta: ${cuentaNumero} - ${cuentaDescripcion}`;
-                footerEmpresa.textContent = empresa;
-                footerCuenta.textContent = cuentaNumero;
-                
-                return;
-            }
+        // La columna 5 es el número de cuenta (ej: 12-02-01-04-05)
+        if (primeraLinea.length > 5 && /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(primeraLinea[5])) {
+            cuentaNumero = primeraLinea[5];
+        }
+        
+        // La columna 6 es la descripción de la cuenta (ej: INVENTARIO CUENTA PUENTE)
+        if (primeraLinea.length > 6) {
+            cuentaDescripcion = primeraLinea[6];
         }
     }
-
-    function limpiarInformacionArchivo() {
-        lblEmpresa.textContent = 'Sin archivo cargado';
-        lblCuenta.textContent = 'Cuenta: -';
-        footerEmpresa.textContent = 'Condominio Altamira Heredia S.A.';
-        footerCuenta.textContent = '06-02-01-04-07';
+    
+    // Intentar extraer el nombre de la compañía de las descripciones
+    // Buscamos patrones como "BODEGA URUKA POINT", "CONDOMINIO ALTAMIRA", etc.
+    for (let linea of lineas) {
+        if (linea.includes('BODEGA URUKA POINT')) {
+            empresa = 'Uruka Point';
+            break;
+        } else if (linea.includes('CONDOMINIO VERTICAL HORIZONTAL RESIDENCIAL TORRE AZUR')) {
+            empresa = 'Torre Azur';
+            break;
+        } else if (linea.includes('CONDOMINIO ALTAMIRA') || linea.includes('HORIZ. RESID. ALTAMIRA')) {
+            empresa = 'Condominio Altamira Heredia S.A.';
+            break;
+        }
     }
-
+    
+    // Si no encontramos la empresa, usar un valor genérico basado en la cuenta
+    if (!empresa) {
+        if (cuentaNumero.startsWith('12-')) {
+            empresa = 'Uruka Point';
+        } else if (cuentaNumero.startsWith('06-')) {
+            empresa = 'Condominio Altamira Heredia S.A.';
+        } else {
+            empresa = 'Empresa Genérica';
+        }
+    }
+    
+    // Actualizar elementos del DOM
+    lblEmpresa.textContent = empresa;
+    lblCuenta.textContent = `Cuenta: ${cuentaNumero} - ${cuentaDescripcion}`;
+    footerEmpresa.textContent = empresa;
+    footerCuenta.textContent = cuentaNumero;
+}
     // ============================================
     // EVENTO: Botón Analizar
     // ============================================
