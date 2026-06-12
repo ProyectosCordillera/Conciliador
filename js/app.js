@@ -1,22 +1,19 @@
-// js/app.js - Lógica del Analizador de Cuenta Puente
+// js/app.js - Lógica del Analizador de Cuenta Puente (Versión Universal)
 
 document.addEventListener('DOMContentLoaded', () => {
-    // ============================================
-    // DECLARACIÓN DE ELEMENTOS DEL DOM
-    // ============================================
     const fileInput = document.getElementById('fileInput');
     const btnAnalizar = document.getElementById('btnAnalizar');
     const btnLimpiar = document.getElementById('btnLimpiar');
     const alertContainer = document.getElementById('alertContainer');
     const resultadosDiv = document.getElementById('resultados');
     const tbodyParejas = document.getElementById('tbodyParejas');
-    
-    // Elementos de información del archivo
+
+    // Elementos de información
     const lblEmpresa = document.getElementById('lblEmpresa');
     const lblCuenta = document.getElementById('lblCuenta');
     const footerEmpresa = document.getElementById('footerEmpresa');
     const footerCuenta = document.getElementById('footerCuenta');
-    
+
     // Elementos de totales
     const lblDebitos = document.getElementById('lblDebitos');
     const lblCreditos = document.getElementById('lblCreditos');
@@ -25,55 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const cardDiferencia = document.getElementById('cardDiferencia');
 
     // ============================================
-    // FUNCIÓN DE RESETEO COMPLETO
-    // ============================================
-    function resetearTodo() {
-        tbodyParejas.innerHTML = '';
-        lblDebitos.textContent = '0.00';
-        lblCreditos.textContent = '0.00';
-        lblDiferencia.textContent = '0.00';
-        lblTotalParejas.textContent = '0';
-        cardDiferencia.className = 'card text-white bg-secondary card-shadow text-center py-3';
-        alertContainer.innerHTML = '';
-        resultadosDiv.style.display = 'none';
-        
-        lblEmpresa.textContent = 'Sin archivo cargado';
-        lblCuenta.textContent = 'Cuenta: -';
-        footerEmpresa.textContent = 'Esperando archivo...';
-        footerCuenta.textContent = '-';
-        
-        console.log('✅ Sistema reseteado completamente');
-    }
-
-    // ============================================
-    // ⭐ NUEVO: EVENTO - Al seleccionar archivo, precargar info
+    // EVENTOS DE BOTONES
     // ============================================
     fileInput.addEventListener('change', () => {
         btnAnalizar.disabled = !fileInput.files.length;
-        
-        if (fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-            
-            reader.onload = (e) => {
-                const texto = e.target.result;
-                
-                // 🎯 PRECARGAR información del archivo INMEDIATAMENTE
-                extraerInformacionArchivo(texto);
-                
-                // Mostrar mensaje de confirmación
-                mostrarAlerta(`✅ Archivo cargado: <strong>${file.name}</strong>. Ya puedes presionar "Analizar".`, 'info');
-            };
-            
-            reader.readAsText(file);
-        } else {
-            resetearTodo();
-        }
     });
 
-    // ============================================
-    // EVENTO: Botón Analizar
-    // ============================================
     btnAnalizar.addEventListener('click', () => {
         const file = fileInput.files[0];
         if (!file) return;
@@ -83,281 +37,181 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const texto = e.target.result;
                 
-                // Parsear movimientos
-                const movimientos = parsearArchivo(texto);
+                // 1. Extraer información de la empresa/cuenta (si existe)
+                extraerInfoEmpresa(texto);
+                
+                // 2. Parsear movimientos (Detecta formato Altamira o 852 automáticamente)
+                const movimientos = parsearArchivoUniversal(texto);
                 
                 if (movimientos.length === 0) {
-                    mostrarAlerta('⚠️ No se encontraron movimientos válidos.', 'warning');
+                    mostrarAlerta('⚠️ No se encontraron movimientos válidos. Verifica el formato del archivo.', 'warning');
                     return;
                 }
 
-                // Emparejar
+                // 3. Emparejar y Renderizar
                 const parejas = emparejarDebitosCreditos(movimientos);
-                
-                // Renderizar
                 renderizarResultados(movimientos, parejas);
                 
-                // Mostrar botón de limpiar
                 btnLimpiar.style.display = 'block';
-                
-                console.log(`✅ Análisis completado: ${movimientos.length} movimientos`);
+                mostrarAlerta(`✅ Análisis completado. Se procesaron ${movimientos.length} movimientos.`, 'success');
             } catch (error) {
-                console.error('❌ Error:', error);
+                console.error(error);
                 mostrarAlerta(`❌ Error al procesar: ${error.message}`, 'danger');
             }
         };
         reader.readAsText(file);
     });
 
-    // ============================================
-    // EVENTO: Botón Limpiar
-    // ============================================
     btnLimpiar.addEventListener('click', () => {
         fileInput.value = '';
-        resetearTodo();
+        resultadosDiv.style.display = 'none';
+        tbodyParejas.innerHTML = '';
+        alertContainer.innerHTML = '';
+        lblDebitos.textContent = '0.00';
+        lblCreditos.textContent = '0.00';
+        lblDiferencia.textContent = '0.00';
+        lblTotalParejas.textContent = '0';
+        cardDiferencia.className = 'card text-white bg-secondary card-shadow text-center py-3';
         btnAnalizar.disabled = true;
         btnLimpiar.style.display = 'none';
-        console.log('🧹 Limpieza completada');
+        
+        // Resetear info empresa
+        lblEmpresa.textContent = 'Sin archivo cargado';
+        lblCuenta.textContent = 'Cuenta: -';
+        footerEmpresa.textContent = 'Esperando archivo...';
+        footerCuenta.textContent = '-';
     });
 
     // ============================================
-    // ⭐ FUNCIÓN: EXTRAER INFORMACIÓN DEL ARCHIVO
-    // (Se ejecuta al SUBIR el archivo, no al analizar)
+    // FUNCIONES DE PARSEO INTELIGENTE
     // ============================================
-    function extraerInformacionArchivo(texto) {
+    
+    function extraerInfoEmpresa(texto) {
+        // Buscar número de cuenta (formato XX-XX-XX-XX-XX)
+        const matchCuenta = texto.match(/(\d{2}-\d{2}-\d{2}-\d{2}-\d{2})/);
+        if (matchCuenta) {
+            const cuenta = matchCuenta[1];
+            footerCuenta.textContent = cuenta;
+            lblCuenta.textContent = `Cuenta: ${cuenta}`;
+        }
+
+        // Buscar nombre de empresa (ej: URUKA POINT S.A. o CONDOMINIO ALTAMIRA)
+        if (texto.includes('URUKA')) {
+            lblEmpresa.textContent = 'Uruka Point S.A.';
+            footerEmpresa.textContent = 'Uruka Point S.A.';
+        } else if (texto.includes('ALTAMIRA')) {
+            lblEmpresa.textContent = 'Condominio Altamira';
+            footerEmpresa.textContent = 'Condominio Altamira';
+        } else {
+            lblEmpresa.textContent = 'Empresa No Identificada';
+            footerEmpresa.textContent = 'Empresa No Identificada';
+        }
+    }
+
+    function parsearArchivoUniversal(texto) {
         const lineas = texto.split(/\r?\n/);
-        
-        if (lineas.length === 0) return;
-        
-        const primeraLinea = lineas[0].split('\t');
-        
-        // La columna 5 es el número de cuenta (ej: 06-02-01-04-07)
-        let cuentaNumero = '';
-        if (primeraLinea.length > 5) {
-            const valorCuenta = primeraLinea[5].trim();
-            if (/^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(valorCuenta)) {
-                cuentaNumero = valorCuenta;
-            }
-        }
-        
-        // La columna 6 es la descripción (ej: INVENTARIO CUENTA PUENTE)
-        let cuentaDescripcion = '';
-        if (primeraLinea.length > 6) {
-            cuentaDescripcion = primeraLinea[6].trim();
-        }
-        
-        // Buscar el nombre de la empresa en las primeras 20 líneas
-        let empresa = 'Empresa No Identificada';
-        
-        for (let i = 1; i < Math.min(20, lineas.length); i++) {
-            const linea = lineas[i];
-            
-            if (linea.includes('BODEGA URUKA POINT') || linea.includes('URUKA POINT')) {
-                empresa = 'Uruka Point';
-                break;
-            } else if (linea.includes('TORRE AZUR')) {
-                empresa = 'Torre Azur';
-                break;
-            } else if (linea.includes('ALTAMIRA')) {
-                empresa = 'Condominio Altamira Heredia S.A.';
-                break;
-            }
-        }
-        
-        // Si no se encuentra, usar valor por defecto basado en la cuenta
-        if (empresa === 'Empresa No Identificada') {
-            if (cuentaNumero.startsWith('12-')) {
-                empresa = 'Uruka Point';
-            } else if (cuentaNumero.startsWith('06-')) {
-                empresa = 'Condominio Altamira Heredia S.A.';
-            }
-        }
-        
-        // 🎯 Actualizar encabezado Y footer
-        lblEmpresa.textContent = empresa;
-        lblCuenta.textContent = `Cuenta: ${cuentaNumero} - ${cuentaDescripcion}`;
-        footerEmpresa.textContent = empresa;
-        footerCuenta.textContent = cuentaNumero;
-        
-        console.log(`🏢 Empresa: ${empresa} | 📊 Cuenta: ${cuentaNumero}`);
-    }
+        const movimientos = [];
 
-    // ============================================
-    // FUNCIÓN: PARSEAR ARCHIVO TXT
-    // ============================================
-  // ============================================
-// FUNCIÓN: PARSEAR ARCHIVO TXT (VERSIÓN INTELIGENTE)
-// ============================================
-// ============================================
-// FUNCIÓN: PARSEAR ARCHIVO TXT (AUTO-DETECCIÓN)
-// Funciona con ambos formatos sin configuración manual
-// ============================================
-function parsearArchivo(texto) {
-    const lineas = texto.split(/\r?\n/);
-    const movimientos = [];
+        lineas.forEach(linea => {
+            if (!linea.trim()) return;
 
-    // 1. DETECCIÓN AUTOMÁTICA DE FORMATO
-    let formato = 'desconocido';
-    for (let linea of lineas) {
-        if (!linea.trim()) continue;
-        
-        // Si tiene tabs y muchas columnas -> Formato Estándar (Altamira/Uruka clásico)
-        if (linea.includes('\t') && linea.split('\t').length > 8) {
-            formato = 'estandar';
-            break;
-        }
-        // Si empieza con fecha -> Formato Compacto (getjobid139852)
-        if (/^\d{2}-\d{2}-\d{4}/.test(linea.trim().substring(0, 10))) {
-            formato = 'compacto';
-            break;
-        }
-    }
-
-    // 2. PROCESAMIENTO LÍNEA POR LÍNEA
-    for (let i = 0; i < lineas.length; i++) {
-        const linea = lineas[i].trim();
-        if (!linea) continue;
-
-        // Ignorar líneas de resumen, encabezados repetidos y totales
-        if (linea.includes('Total Saldo Anterior') ||
-            linea.includes('Total Acumulado') ||
-            linea.includes('Saldo Anterior:') ||
-            linea.includes('Cuenta Contable') ||
-            linea.includes('Fecha Asiento Descripción') ||
-            linea.includes('Total:')) {
-            continue;
-        }
-
-        let fecha, asiento, descripcion, debito, credito;
-
-        if (formato === 'estandar') {
-            // Formato Tabulado Largo: Cuenta | Desc | Deb | Cred | Saldo | FECHA | ASIENTO | DESC_MOV | ... | MONTO_DEB | MONTO_CRED | ...
             const cols = linea.split('\t');
-            if (cols.length < 10) continue;
+            let fecha = '', asiento = '', descripcion = '', debito = 0, credito = 0;
+            let formatoDetectado = null;
 
-            fecha = cols[5]?.trim();
-            asiento = cols[6]?.trim();
-            descripcion = cols[7]?.trim();
-            debito = parsearMonto(cols[9]);
-            credito = parsearMonto(cols[10]);
-        }
-        else if (formato === 'compacto') {
-            // Formato Compacto (Espaciado): FECHA | ASIENTO | DESCRIPCIÓN... | GRUPO | DÉBITO | CRÉDITO | SALDO
-            const partes = linea.split(/\s+/);
-            if (partes.length < 6) continue;
+            // --- INTENTO 1: Formato Altamira (Tabulado con totales al final) ---
+            // Tiene muchas columnas y la fecha está en el índice 5
+            if (cols.length >= 11) {
+                const posibleFecha = cols[5].trim();
+                // Validar que sea fecha (dd-mm-yyyy) y no número de cuenta (06-02-01-04-07)
+                if (/^\d{2}-\d{2}-\d{4}$/.test(posibleFecha)) {
+                    formatoDetectado = 'altamira';
+                    fecha = posibleFecha;
+                    asiento = cols[6].trim();
+                    descripcion = cols[7].trim();
+                    // En Altamira, los montos suelen estar en las columnas 9 y 10
+                    debito = parsearMonto(cols[9]);
+                    credito = parsearMonto(cols[10]);
+                }
+            }
 
-            fecha = partes[0];
-            asiento = partes[1];
-            // Los últimos 3 valores son: Débito, Crédito, Saldo
-            debito = parsearMonto(partes[partes.length - 3]);
-            credito = parsearMonto(partes[partes.length - 2]);
-            // La descripción es todo lo que está entre el Asiento y los montos
-            descripcion = partes.slice(2, -3).join(' ');
-        }
-        else {
-            continue; // Formato no reconocido, saltar línea
-        }
+            // --- INTENTO 2: Formato 852 (Tabulado limpio) ---
+            // Fecha en columna 0
+            if (!formatoDetectado && cols.length >= 6) {
+                const posibleFecha = cols[0].trim();
+                if (/^\d{2}-\d{2}-\d{4}$/.test(posibleFecha)) {
+                    formatoDetectado = '852-tabs';
+                    fecha = posibleFecha;
+                    asiento = cols[1].trim();
+                    descripcion = cols[2].trim();
+                    // Asumimos: Fecha(0), Asiento(1), Desc(2), Grupo(3), Debito(4), Credito(5)
+                    debito = parsearMonto(cols[4]);
+                    credito = parsearMonto(cols[5]);
+                }
+            }
 
-        // Validar que sea una fecha real
-        if (!fecha || !/^\d{2}-\d{2}-\d{4}$/.test(fecha)) continue;
+            // --- INTENTO 3: Formato 852 (Separado por espacios) ---
+            // Si los tabs fallaron, usamos Regex para buscar el patrón al inicio de la línea
+            if (!formatoDetectado) {
+                const regex = /^(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(.*?)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,-]+\.\d{2})/;
+                const match = linea.match(regex);
+                if (match) {
+                    formatoDetectado = '852-espacios';
+                    fecha = match[1];
+                    asiento = match[2];
+                    descripcion = match[3].trim();
+                    debito = parsearMonto(match[4]);
+                    credito = parsearMonto(match[5]);
+                }
+            }
 
-        // Solo guardar si tiene movimiento real (débito o crédito > 0)
-        if (debito > 0 || credito > 0) {
-            movimientos.push({
-                lineaOriginal: i + 1,
-                fecha,
-                asiento: asiento || '-',
-                descripcion: descripcion || '-',
-                debito,
-                credito
-            });
-        }
+            // Si se detectó un formato válido y hay montos, agregar a la lista
+            if (formatoDetectado && (debito > 0 || credito > 0)) {
+                movimientos.push({
+                    fecha, asiento, descripcion, debito, credito
+                });
+            }
+        });
+
+        return movimientos;
     }
 
-    return movimientos;
-}
-
-// Función auxiliar para limpiar y convertir montos (MANTENER ESTA SI YA LA TIENES)
-function parsearMonto(valor) {
-    if (!valor) return 0;
-    const limpio = valor.toString().trim().replace(/,/g, '');
-    const num = parseFloat(limpio);
-    return isNaN(num) ? 0 : num;
-}
+    function parsearMonto(valor) {
+        if (!valor) return 0;
+        const limpio = valor.toString().replace(/,/g, '').trim();
+        const num = parseFloat(limpio);
+        return isNaN(num) ? 0 : num;
+    }
 
     // ============================================
-    // FUNCIÓN: MOTOR DE EMPAREJAMIENTO
+    // LÓGICA DE EMPAREJAMIENTO
     // ============================================
     function emparejarDebitosCreditos(movimientos) {
         let debitos = movimientos.filter(m => m.debito > 0).map(m => ({...m, emparejado: false}));
         let creditos = movimientos.filter(m => m.credito > 0).map(m => ({...m, emparejado: false}));
         let parejas = [];
 
-        // NIVEL 1: Coincidencias EXACTAS (Verde)
+        // Nivel 1: Coincidencias exactas
         debitos.forEach(d => {
             if (d.emparejado) return;
             const c = creditos.find(c => !c.emparejado && c.credito === d.debito);
-            
             if (c) {
-                parejas.push({ 
-                    d, c, diff: 0, 
-                    estado: '✅ Conciliado', 
-                    color: 'verde',
-                    tooltip: `Montos idénticos: ${d.debito.toFixed(2)}`
-                });
-                d.emparejado = true; 
-                c.emparejado = true;
+                parejas.push({ d, c, diff: 0, estado: '✅ Conciliado', color: 'verde' });
+                d.emparejado = true; c.emparejado = true;
             }
         });
 
-        // NIVEL 2: Coincidencias CERCANAS (Amarillo)
-        debitos.forEach(d => {
-            if (d.emparejado) return;
-            
-            let mejorC = null;
-            let minDiff = Infinity;
-            
-            creditos.forEach(c => {
-                if (!c.emparejado) {
-                    const diff = Math.abs(c.credito - d.debito);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        mejorC = c;
-                    }
-                }
-            });
-            
-            if (mejorC && minDiff > 0 && minDiff < 100) {
-                parejas.push({ 
-                    d, c: mejorC, diff: d.debito - mejorC.credito, 
-                    estado: '⚠️ Posible coincidencia', 
-                    color: 'amarilla',
-                    tooltip: `Diferencia: ${(d.debito - mejorC.credito).toFixed(2)}<br>Débito: ${d.debito.toFixed(2)}<br>Crédito: ${mejorC.credito.toFixed(2)}`
-                });
-                d.emparejado = true;
-                mejorC.emparejado = true;
-            }
-        });
-
-        // NIVEL 3: Sin pareja (Rojo)
+        // Nivel 2: Débitos sin pareja
         debitos.filter(d => !d.emparejado).forEach(d => {
-            parejas.push({ 
-                d, c: null, diff: d.debito, 
-                estado: '❌ Sin pareja (Débito)', 
-                color: 'roja',
-                tooltip: `Débito huérfano: ${d.debito.toFixed(2)}<br>Asiento: ${d.asiento}<br>Descripción: ${d.descripcion}`
-            });
+            parejas.push({ d, c: null, diff: d.debito, estado: '❌ Sin pareja (Débito)', color: 'roja' });
         });
 
+        // Nivel 3: Créditos sin pareja
         creditos.filter(c => !c.emparejado).forEach(c => {
-            parejas.push({ 
-                d: null, c, diff: -c.credito, 
-                estado: '❌ Sin pareja (Crédito)', 
-                color: 'roja',
-                tooltip: `Crédito huérfano: ${c.credito.toFixed(2)}<br>Asiento: ${c.asiento}<br>Descripción: ${c.descripcion}`
-            });
+            parejas.push({ d: null, c, diff: -c.credito, estado: '❌ Sin pareja (Crédito)', color: 'roja' });
         });
 
+        // Ordenar por monto
         parejas.sort((a, b) => {
             const montoA = Math.max(a.d?.debito || 0, a.c?.credito || 0);
             const montoB = Math.max(b.d?.debito || 0, b.c?.credito || 0);
@@ -368,7 +222,7 @@ function parsearMonto(valor) {
     }
 
     // ============================================
-    // FUNCIÓN: RENDERIZAR RESULTADOS
+    // RENDERIZADO
     // ============================================
     function renderizarResultados(movimientos, parejas) {
         resultadosDiv.style.display = 'block';
@@ -409,32 +263,15 @@ function parsearMonto(valor) {
                 <td><strong>${p.c ? escapeHtml(p.c.asiento) : '-'}</strong></td>
                 <td>${p.c ? escapeHtml(p.c.fecha) : '-'}</td>
                 <td class="text-center">
-                    <span class="badge ${p.color === 'verde' ? 'bg-success' : (p.color === 'amarilla' ? 'bg-warning text-dark' : 'bg-danger')}" 
-                          data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" 
-                          title="${p.tooltip}">
+                    <span class="badge ${p.color === 'verde' ? 'bg-success' : 'bg-danger'}">
                         ${p.estado}
                     </span>
                 </td>
             `;
             tbodyParejas.appendChild(tr);
         });
-
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
-
-        const errores = parejas.filter(p => p.color === 'roja').length;
-        const posibles = parejas.filter(p => p.color === 'amarilla').length;
-        
-        if (errores === 0 && posibles === 0) {
-            mostrarAlerta(`✅ ¡CUENTA CUADRADA! Todas las ${parejas.length} parejas están conciliadas.`, 'success');
-        } else {
-            mostrarAlerta(`❌ HAY DESCUADRES. ${errores} líneas sin conciliar y ${posibles} posibles coincidencias.`, 'danger');
-        }
     }
 
-    // ============================================
-    // FUNCIÓN: MOSTRAR ALERTAS
-    // ============================================
     function mostrarAlerta(mensaje, tipo) {
         alertContainer.innerHTML = `<div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
             ${mensaje}
