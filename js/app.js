@@ -1,4 +1,5 @@
 // js/app.js - Lógica del Analizador de Cuenta Puente
+// Versión con reseteo completo para evitar acumulación de datos
 
 document.addEventListener('DOMContentLoaded', () => {
     // ============================================
@@ -16,19 +17,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const lblCuenta = document.getElementById('lblCuenta');
     const footerEmpresa = document.getElementById('footerEmpresa');
     const footerCuenta = document.getElementById('footerCuenta');
+    
+    // Elementos de totales
+    const lblDebitos = document.getElementById('lblDebitos');
+    const lblCreditos = document.getElementById('lblCreditos');
+    const lblDiferencia = document.getElementById('lblDiferencia');
+    const lblTotalParejas = document.getElementById('lblTotalParejas');
+    const cardDiferencia = document.getElementById('cardDiferencia');
 
     // ============================================
-    // VARIABLES DE ESTADO (se resetean con limpiar)
+    // FUNCIÓN DE RESETEO COMPLETO
     // ============================================
-    let movimientosActuales = [];
-    let parejasActuales = [];
+    function resetearTodo() {
+        // 1. Limpiar tabla completamente
+        tbodyParejas.innerHTML = '';
+        
+        // 2. Resetear contadores (usando textContent = para evitar acumulación)
+        lblDebitos.textContent = '0.00';
+        lblCreditos.textContent = '0.00';
+        lblDiferencia.textContent = '0.00';
+        lblTotalParejas.textContent = '0';
+        
+        // 3. Resetear color de tarjeta de diferencia
+        cardDiferencia.className = 'card text-white bg-secondary card-shadow text-center py-3';
+        
+        // 4. Limpiar alertas
+        alertContainer.innerHTML = '';
+        
+        // 5. Ocultar resultados
+        resultadosDiv.style.display = 'none';
+        
+        // 6. Limpiar información del archivo
+        lblEmpresa.textContent = 'Sin archivo cargado';
+        lblCuenta.textContent = 'Cuenta: -';
+        footerEmpresa.textContent = 'Condominio Altamira Heredia S.A.';
+        footerCuenta.textContent = '06-02-01-04-07';
+        
+        console.log('✅ Sistema reseteado completamente');
+    }
 
     // ============================================
     // EVENTO: Seleccionar archivo
     // ============================================
     fileInput.addEventListener('change', () => {
         btnAnalizar.disabled = !fileInput.files.length;
-        // NO limpiamos resultados aquí, solo cuando se presione el botón Limpiar
+        // NO reseteamos aquí para no borrar resultados previos accidentalmente
     });
 
     // ============================================
@@ -38,35 +71,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = fileInput.files[0];
         if (!file) return;
 
+        // ️ IMPORTANTE: Resetear TODO antes de procesar
+        resetearTodo();
+        
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const texto = e.target.result;
                 
-                // LIMPIAR datos anteriores antes de procesar
-                movimientosActuales = [];
-                parejasActuales = [];
-                
-                // Extraer información del archivo
+                // Extraer información del archivo PRIMERO
                 extraerInformacionArchivo(texto);
                 
                 // Parsear movimientos
-                movimientosActuales = parsearArchivo(texto);
+                const movimientos = parsearArchivo(texto);
                 
-                if (movimientosActuales.length === 0) {
+                if (movimientos.length === 0) {
                     mostrarAlerta('⚠️ No se encontraron movimientos válidos. Asegúrate de subir el TXT de Open 4 Business.', 'warning');
                     return;
                 }
 
                 // Emparejar
-                parejasActuales = emparejarDebitosCreditos(movimientosActuales);
+                const parejas = emparejarDebitosCreditos(movimientos);
                 
                 // Renderizar
-                renderizarResultados(movimientosActuales, parejasActuales);
+                renderizarResultados(movimientos, parejas);
                 
                 // Mostrar botón de limpiar
                 btnLimpiar.style.display = 'block';
+                
+                console.log(`✅ Análisis completado: ${movimientos.length} movimientos procesados`);
             } catch (error) {
+                console.error('❌ Error:', error);
                 mostrarAlerta(`❌ Error al procesar: ${error.message}`, 'danger');
             }
         };
@@ -77,40 +112,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // EVENTO: Botón Limpiar
     // ============================================
     btnLimpiar.addEventListener('click', () => {
-        // 1. Resetear input de archivo
+        // Resetear input de archivo
         fileInput.value = '';
         
-        // 2. LIMPIAR variables de estado
-        movimientosActuales = [];
-        parejasActuales = [];
+        // Resetear TODO
+        resetearTodo();
         
-        // 3. Ocultar resultados
-        resultadosDiv.style.display = 'none';
-        
-        // 4. Limpiar tabla (eliminar todas las filas)
-        tbodyParejas.innerHTML = '';
-        
-        // 5. Limpiar alertas
-        alertContainer.innerHTML = '';
-        
-        // 6. Resetear contadores
-        document.getElementById('lblDebitos').textContent = '0.00';
-        document.getElementById('lblCreditos').textContent = '0.00';
-        document.getElementById('lblDiferencia').textContent = '0.00';
-        document.getElementById('lblTotalParejas').textContent = '0';
-        
-        // 7. Resetear color de tarjeta de diferencia
-        const cardDif = document.getElementById('cardDiferencia');
-        cardDif.className = 'card text-white bg-secondary card-shadow text-center py-3';
-        
-        // 8. Deshabilitar botón de analizar
+        // Deshabilitar botón de analizar
         btnAnalizar.disabled = true;
         
-        // 9. Ocultar botón de limpiar
+        // Ocultar botón de limpiar
         btnLimpiar.style.display = 'none';
         
-        // 10. Limpiar información del archivo
-        limpiarInformacionArchivo();
+        console.log('🧹 Limpieza completada');
     });
 
     // ============================================
@@ -173,13 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
         footerCuenta.textContent = cuentaNumero;
     }
 
-    function limpiarInformacionArchivo() {
-        lblEmpresa.textContent = 'Sin archivo cargado';
-        lblCuenta.textContent = 'Cuenta: -';
-        footerEmpresa.textContent = 'Condominio Altamira Heredia S.A.';
-        footerCuenta.textContent = '06-02-01-04-07';
-    }
-
     // ============================================
     // 1. PARSEAR ARCHIVO TXT DE OPEN 4 BUSINESS
     // ============================================
@@ -193,48 +200,21 @@ document.addEventListener('DOMContentLoaded', () => {
             // Necesitamos al menos 11 columnas para tener todos los datos
             if (cols.length < 11) return;
             
-            // La fecha SIEMPRE está en la columna 0 o 5 (formato dd-mm-yyyy)
-            let fechaStr = '';
-            for (let i = 0; i < Math.min(10, cols.length); i++) {
-                if (/^\d{2}-\d{2}-\d{4}$/.test(cols[i].trim())) {
-                    fechaStr = cols[i].trim();
-                    break;
-                }
-            }
+            // La fecha SIEMPRE está en la columna 5 (formato dd-mm-yyyy)
+            const fechaStr = cols[5] ? cols[5].trim() : '';
+            if (!/^\d{2}-\d{2}-\d{4}$/.test(fechaStr)) return;
             
-            if (!fechaStr) return;
+            // El asiento SIEMPRE está en la columna 6
+            const asiento = cols[6] ? cols[6].trim() : '';
             
-            // El asiento está después de la fecha
-            let asiento = '';
-            let descIndex = -1;
-            for (let i = 0; i < cols.length; i++) {
-                if (cols[i].trim() === fechaStr && i + 1 < cols.length) {
-                    asiento = cols[i + 1].trim();
-                    if (i + 2 < cols.length) {
-                        descIndex = i + 2;
-                    }
-                    break;
-                }
-            }
+            // La descripción SIEMPRE está en la columna 7
+            const descripcion = cols[7] ? cols[7].trim() : '';
             
-            // La descripción está después del asiento
-            const descripcion = descIndex > 0 && cols[descIndex] ? cols[descIndex].trim() : '';
+            // El monto débito SIEMPRE está en la columna 9
+            const debito = parsearMonto(cols[9]);
             
-            // Buscar montos (débito y crédito)
-            let debito = 0;
-            let credito = 0;
-            
-            for (let i = 0; i < cols.length; i++) {
-                const val = cols[i].trim();
-                if (/^\d{1,3}(,\d{3})*\.\d{2}$/.test(val)) {
-                    const num = parseFloat(val.replace(/,/g, ''));
-                    if (debito === 0 && num > 0) {
-                        debito = num;
-                    } else if (credito === 0) {
-                        credito = num;
-                    }
-                }
-            }
+            // El monto crédito SIEMPRE está en la columna 10
+            const credito = parsearMonto(cols[10]);
             
             // Solo agregar si tiene débito O crédito mayor a 0
             if (debito > 0 || credito > 0) {
@@ -252,10 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return movimientos;
     }
 
-    // Función auxiliar para parsear montos con formato de miles (ej: 7,034,198.96)
+    // Función auxiliar para parsear montos
     function parsearMonto(valor) {
         if (!valor) return 0;
-        // Quitar comas de miles y convertir a número
         const limpio = valor.trim().replace(/,/g, '');
         const num = parseFloat(limpio);
         return isNaN(num) ? 0 : num;
@@ -319,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
         debitos.filter(d => !d.emparejado).forEach(d => {
             parejas.push({ 
                 d, c: null, diff: d.debito, 
-                estado: '❌ Sin pareja (Débito)', 
+                estado: ' Sin pareja (Débito)', 
                 color: 'roja',
                 tooltip: `Débito huérfano: ${d.debito.toFixed(2)}<br>Asiento: ${d.asiento}<br>Descripción: ${d.descripcion}<br>Acción: Buscar crédito por este monto`
             });
@@ -349,23 +328,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. RENDERIZAR RESULTADOS EN LA TABLA
     // ============================================
     function renderizarResultados(movimientos, parejas) {
+        // ⚠️ IMPORTANTE: Mostrar resultados
         resultadosDiv.style.display = 'block';
         
+        // ️ IMPORTANTE: Calcular totales desde CERO (no acumular)
         const totalDebitos = movimientos.reduce((sum, m) => sum + m.debito, 0);
         const totalCreditos = movimientos.reduce((sum, m) => sum + m.credito, 0);
         const diferencia = totalDebitos - totalCreditos;
 
-        document.getElementById('lblDebitos').textContent = totalDebitos.toLocaleString('en-US', {minimumFractionDigits: 2});
-        document.getElementById('lblCreditos').textContent = totalCreditos.toLocaleString('en-US', {minimumFractionDigits: 2});
-        document.getElementById('lblDiferencia').textContent = diferencia.toLocaleString('en-US', {minimumFractionDigits: 2});
-        document.getElementById('lblTotalParejas').textContent = parejas.length;
+        // ️ IMPORTANTE: Usar textContent = (no +=) para evitar acumulación
+        lblDebitos.textContent = totalDebitos.toLocaleString('en-US', {minimumFractionDigits: 2});
+        lblCreditos.textContent = totalCreditos.toLocaleString('en-US', {minimumFractionDigits: 2});
+        lblDiferencia.textContent = diferencia.toLocaleString('en-US', {minimumFractionDigits: 2});
+        lblTotalParejas.textContent = parejas.length;
 
         // Color de la tarjeta de diferencia
-        const cardDif = document.getElementById('cardDiferencia');
-        cardDif.className = `card text-white card-shadow text-center py-3 ${Math.abs(diferencia) < 0.01 ? 'bg-success' : 'bg-danger'}`;
+        cardDiferencia.className = `card text-white card-shadow text-center py-3 ${Math.abs(diferencia) < 0.01 ? 'bg-success' : 'bg-danger'}`;
 
-        // Generar filas de la tabla
+        // ⚠️ IMPORTANTE: Limpiar tabla ANTES de agregar filas
         tbodyParejas.innerHTML = '';
+        
         parejas.forEach(p => {
             const tr = document.createElement('tr');
             tr.className = `fila-${p.color}`;
