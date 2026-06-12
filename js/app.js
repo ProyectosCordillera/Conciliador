@@ -1,6 +1,4 @@
 // js/app.js - Lógica del Analizador de Cuenta Puente
-// Estructura fija del TXT de Open 4 Business:
-// Col 5: Cuenta | Col 6: Descripción Cuenta | Col 9: Débito | Col 10: Crédito
 
 document.addEventListener('DOMContentLoaded', () => {
     // ============================================
@@ -20,90 +18,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const footerCuenta = document.getElementById('footerCuenta');
 
     // ============================================
+    // VARIABLES DE ESTADO (se resetean con limpiar)
+    // ============================================
+    let movimientosActuales = [];
+    let parejasActuales = [];
+
+    // ============================================
     // EVENTO: Seleccionar archivo
     // ============================================
     fileInput.addEventListener('change', () => {
         btnAnalizar.disabled = !fileInput.files.length;
-        alertContainer.innerHTML = '';
-        resultadosDiv.style.display = 'none';
-        
-        // Si hay archivo, leer la primera línea para extraer información
-        if (fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const texto = e.target.result;
-                extraerInformacionArchivo(texto);
-            };
-            reader.readAsText(file);
-        } else {
-            // Si no hay archivo, limpiar información
-            limpiarInformacionArchivo();
-        }
+        // NO limpiamos resultados aquí, solo cuando se presione el botón Limpiar
     });
 
-// ============================================
-// FUNCIONES PARA EXTRAER INFORMACIÓN DEL ARCHIVO
-// ============================================
-function extraerInformacionArchivo(texto) {
-    const lineas = texto.split(/\r?\n/);
-    
-    // La PRIMERA línea tiene la información de la cuenta
-    // Formato: Cuenta Contable | Descripción | Débitos | Créditos | Saldo | NUMERO_CUENTA | DESCRIPCION_CUENTA | ...
-    if (lineas.length === 0) return;
-    
-    const primeraLinea = lineas[0].split('\t');
-    
-    // La columna 5 (índice 5) es el número de cuenta
-    // Ejemplo: 12-02-01-04-05 o 06-02-01-04-07
-    let cuentaNumero = '';
-    if (primeraLinea.length > 5 && /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(primeraLinea[5].trim())) {
-        cuentaNumero = primeraLinea[5].trim();
-    }
-    
-    // La columna 6 (índice 6) es la descripción de la cuenta
-    // Ejemplo: INVENTARIO CUENTA PUENTE
-    let cuentaDescripcion = '';
-    if (primeraLinea.length > 6) {
-        cuentaDescripcion = primeraLinea[6].trim();
-    }
-    
-    // Intentar extraer el nombre de la empresa de las descripciones de los movimientos
-    let empresa = 'Empresa No Identificada';
-    
-    for (let i = 1; i < Math.min(20, lineas.length); i++) {
-        const linea = lineas[i];
-        
-        // Buscar patrones específicos en las descripciones
-        if (linea.includes('BODEGA URUKA POINT') || linea.includes('URUKA POINT')) {
-            empresa = 'Uruka Point';
-            break;
-        } else if (linea.includes('CONDOMINIO VERTICAL HORIZONTAL RESIDENCIAL TORRE AZUR') || 
-                   linea.includes('TORRE AZUR')) {
-            empresa = 'Torre Azur';
-            break;
-        } else if (linea.includes('CONDOMINIO VERTICAL  HORIZ. RESID. ALTAMIRA') || 
-                   linea.includes('ALTAMIRA')) {
-            empresa = 'Condominio Altamira Heredia S.A.';
-            break;
-        }
-    }
-    
-    // Si no encontramos la empresa, usar valor por defecto basado en la cuenta
-    if (empresa === 'Empresa No Identificada') {
-        if (cuentaNumero.startsWith('12-')) {
-            empresa = 'Uruka Point';
-        } else if (cuentaNumero.startsWith('06-')) {
-            empresa = 'Condominio Altamira Heredia S.A.';
-        }
-    }
-    
-    // Actualizar elementos del DOM
-    lblEmpresa.textContent = empresa;
-    lblCuenta.textContent = `Cuenta: ${cuentaNumero} - ${cuentaDescripcion}`;
-    footerEmpresa.textContent = empresa;
-    footerCuenta.textContent = cuentaNumero;
-}
     // ============================================
     // EVENTO: Botón Analizar
     // ============================================
@@ -115,17 +42,29 @@ function extraerInformacionArchivo(texto) {
         reader.onload = (e) => {
             try {
                 const texto = e.target.result;
-                const movimientos = parsearArchivo(texto);
                 
-                if (movimientos.length === 0) {
+                // LIMPIAR datos anteriores antes de procesar
+                movimientosActuales = [];
+                parejasActuales = [];
+                
+                // Extraer información del archivo
+                extraerInformacionArchivo(texto);
+                
+                // Parsear movimientos
+                movimientosActuales = parsearArchivo(texto);
+                
+                if (movimientosActuales.length === 0) {
                     mostrarAlerta('⚠️ No se encontraron movimientos válidos. Asegúrate de subir el TXT de Open 4 Business.', 'warning');
                     return;
                 }
 
-                const parejas = emparejarDebitosCreditos(movimientos);
-                renderizarResultados(movimientos, parejas);
+                // Emparejar
+                parejasActuales = emparejarDebitosCreditos(movimientosActuales);
                 
-                // Mostrar botón de limpiar DESPUÉS de analizar
+                // Renderizar
+                renderizarResultados(movimientosActuales, parejasActuales);
+                
+                // Mostrar botón de limpiar
                 btnLimpiar.style.display = 'block';
             } catch (error) {
                 mostrarAlerta(`❌ Error al procesar: ${error.message}`, 'danger');
@@ -138,37 +77,108 @@ function extraerInformacionArchivo(texto) {
     // EVENTO: Botón Limpiar
     // ============================================
     btnLimpiar.addEventListener('click', () => {
-        // Resetear el input de archivo
+        // 1. Resetear input de archivo
         fileInput.value = '';
         
-        // Ocultar resultados
+        // 2. LIMPIAR variables de estado
+        movimientosActuales = [];
+        parejasActuales = [];
+        
+        // 3. Ocultar resultados
         resultadosDiv.style.display = 'none';
         
-        // Limpiar tabla
+        // 4. Limpiar tabla (eliminar todas las filas)
         tbodyParejas.innerHTML = '';
         
-        // Limpiar alertas
+        // 5. Limpiar alertas
         alertContainer.innerHTML = '';
         
-        // Resetear contadores
+        // 6. Resetear contadores
         document.getElementById('lblDebitos').textContent = '0.00';
         document.getElementById('lblCreditos').textContent = '0.00';
         document.getElementById('lblDiferencia').textContent = '0.00';
         document.getElementById('lblTotalParejas').textContent = '0';
         
-        // Resetear color de tarjeta de diferencia
+        // 7. Resetear color de tarjeta de diferencia
         const cardDif = document.getElementById('cardDiferencia');
         cardDif.className = 'card text-white bg-secondary card-shadow text-center py-3';
         
-        // Deshabilitar botón de analizar
+        // 8. Deshabilitar botón de analizar
         btnAnalizar.disabled = true;
         
-        // Ocultar botón de limpiar
+        // 9. Ocultar botón de limpiar
         btnLimpiar.style.display = 'none';
         
-        // Limpiar información del archivo
+        // 10. Limpiar información del archivo
         limpiarInformacionArchivo();
     });
+
+    // ============================================
+    // FUNCIONES PARA EXTRAER INFORMACIÓN DEL ARCHIVO
+    // ============================================
+    function extraerInformacionArchivo(texto) {
+        const lineas = texto.split(/\r?\n/);
+        
+        // Buscar la primera línea con datos de cuenta
+        if (lineas.length === 0) return;
+        
+        const primeraLinea = lineas[0].split('\t');
+        
+        // La columna 5 (índice 5) es el número de cuenta
+        let cuentaNumero = '';
+        if (primeraLinea.length > 5 && /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(primeraLinea[5].trim())) {
+            cuentaNumero = primeraLinea[5].trim();
+        }
+        
+        // La columna 6 (índice 6) es la descripción de la cuenta
+        let cuentaDescripcion = '';
+        if (primeraLinea.length > 6) {
+            cuentaDescripcion = primeraLinea[6].trim();
+        }
+        
+        // Intentar extraer el nombre de la empresa de las descripciones de los movimientos
+        let empresa = 'Empresa No Identificada';
+        
+        for (let i = 1; i < Math.min(20, lineas.length); i++) {
+            const linea = lineas[i];
+            
+            // Buscar patrones específicos en las descripciones
+            if (linea.includes('BODEGA URUKA POINT') || linea.includes('URUKA POINT')) {
+                empresa = 'Uruka Point';
+                break;
+            } else if (linea.includes('CONDOMINIO VERTICAL HORIZONTAL RESIDENCIAL TORRE AZUR') || 
+                       linea.includes('TORRE AZUR')) {
+                empresa = 'Torre Azur';
+                break;
+            } else if (linea.includes('CONDOMINIO VERTICAL  HORIZ. RESID. ALTAMIRA') || 
+                       linea.includes('ALTAMIRA')) {
+                empresa = 'Condominio Altamira Heredia S.A.';
+                break;
+            }
+        }
+        
+        // Si no encontramos la empresa, usar valor por defecto basado en la cuenta
+        if (empresa === 'Empresa No Identificada') {
+            if (cuentaNumero.startsWith('12-')) {
+                empresa = 'Uruka Point';
+            } else if (cuentaNumero.startsWith('06-')) {
+                empresa = 'Condominio Altamira Heredia S.A.';
+            }
+        }
+        
+        // Actualizar elementos del DOM
+        lblEmpresa.textContent = empresa;
+        lblCuenta.textContent = `Cuenta: ${cuentaNumero} - ${cuentaDescripcion}`;
+        footerEmpresa.textContent = empresa;
+        footerCuenta.textContent = cuentaNumero;
+    }
+
+    function limpiarInformacionArchivo() {
+        lblEmpresa.textContent = 'Sin archivo cargado';
+        lblCuenta.textContent = 'Cuenta: -';
+        footerEmpresa.textContent = 'Condominio Altamira Heredia S.A.';
+        footerCuenta.textContent = '06-02-01-04-07';
+    }
 
     // ============================================
     // 1. PARSEAR ARCHIVO TXT DE OPEN 4 BUSINESS
