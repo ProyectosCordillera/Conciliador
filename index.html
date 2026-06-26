@@ -3,239 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conciliador Cuenta Puente</title>
-    <!-- Bootstrap 5 CSS -->
+    <title>Sistema Contable - Panel Principal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-    <!-- Nuestro CSS personalizado -->
-    <link href="css/style.css" rel="stylesheet">
+    <link href="css/dashboard.css" rel="stylesheet">
 </head>
-<body class="d-flex flex-column min-vh-100">
+<body class="d-flex flex-column min-vh-100 bg-light">
 
     <!-- ============================================ -->
-    <!-- ENCABEZADO (NAVBAR) -->
+    <!-- NAVBAR COMPARTIDO -->
     <!-- ============================================ -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow sticky-top">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <i class="bi bi-calculator-fill fs-3 me-2 text-warning"></i>
-                <span class="fw-bold">Conciliador Cuentas</span>
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <i class="bi bi-building fs-3 me-2 text-warning"></i>
+                <div>
+                    <div class="fw-bold">Sistema Contable</div>
+                    <small class="text-white-50 d-none d-md-block">Herramientas de Análisis</small>
+                </div>
             </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="index.html">
+                            <i class="bi bi-house-door me-1"></i>Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="conciliador.html">
+                            <i class="bi bi-calculator me-1"></i>Conciliador
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="analizador.html">
+                            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Analizador
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-question-circle me-1"></i>Ayuda
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-book me-2"></i>Documentación</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-info-circle me-2"></i>Acerca de</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
 
-    <!-- Banner informativo con datos del archivo -->
-    <div class="bg-primary text-white py-2">
+    <!-- ============================================ -->
+    <!-- HERO SECTION -->
+    <!-- ============================================ -->
+    <section class="hero-section text-white text-center py-5">
         <div class="container">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-building me-2 fs-5"></i>
-                        <div>
-                            <div id="lblEmpresa" class="fw-bold">Sin archivo cargado</div>
-                            <div id="lblCuenta" class="small opacity-75">Cuenta: -</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="d-flex align-items-center justify-content-end">
-                        <i class="bi bi-calendar3 me-2"></i>
-                        <span id="fechaActual"></span>
-                    </div>
-                </div>
+            <h1 class="display-4 fw-bold mb-3">
+                <i class="bi bi-graph-up-arrow"></i> Sistema de Análisis Contable
+            </h1>
+            <p class="lead mb-4">
+                Herramientas profesionales para el análisis y conciliación de cuentas contables.
+                <br>Procesamiento 100% local en tu navegador - Tus datos nunca salen de tu equipo.
+            </p>
+            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                <a href="#herramientas" class="btn btn-warning btn-lg px-4">
+                    <i class="bi bi-rocket-takeoff me-2"></i>Comenzar
+                </a>
+                <a href="#info" class="btn btn-outline-light btn-lg px-4">
+                    <i class="bi bi-info-circle me-2"></i>Más información
+                </a>
             </div>
         </div>
-    </div>
+    </section>
 
     <!-- ============================================ -->
     <!-- CONTENIDO PRINCIPAL -->
     <!-- ============================================ -->
     <main class="flex-grow-1">
-        <div class="container py-4">
+        <div class="container py-5" id="herramientas">
             
-            <!-- Encabezado y Carga de Archivo -->
-            <div class="card card-shadow mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>CONCILIADOR</h3>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted mb-3">
-                        <i class="bi bi-upload me-1"></i>
-                        Sube el archivo <strong>.txt</strong> exportado desde Open 4 Business. El sistema emparejará automáticamente Débitos contra Créditos.
-                    </p>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-6">
-                            <label for="fileInput" class="form-label fw-bold">
-                                <i class="bi bi-folder2-open me-1"></i>Seleccionar archivo:
-                            </label>
-                            <input type="file" id="fileInput" class="form-control" accept=".txt">
-                        </div>
-                        <div class="col-md-3">
-                            <button id="btnAnalizar" class="btn btn-primary w-100" disabled>
-                                <i class="bi bi-search me-1"></i>Analizar
-                            </button>
-                        </div>
-                        <div class="col-md-3">
-                            <button id="btnLimpiar" class="btn btn-outline-secondary w-100" style="display: none;">
-                                <i class="bi bi-eraser-fill me-1"></i>Limpiar
-                            </button>
-                        </div>
-                    </div>
-                    <div id="alertContainer" class="mt-3"></div>
-                </div>
+            <!-- Título de sección -->
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">
+                    <i class="bi bi-tools text-primary me-2"></i>Nuestras Herramientas
+                </h2>
+                <p class="text-muted">Selecciona la herramienta que necesitas utilizar</p>
             </div>
 
-            <!-- Sección de Resultados (Oculta al inicio) -->
-            <div id="resultados" style="display: none;">
+            <!-- Tarjetas de herramientas -->
+            <div class="row g-4">
                 
-                <!-- Tarjetas de Resumen -->
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <div class="card text-white bg-success card-shadow text-center py-3">
-                            <h6 class="mb-1"><i class="bi bi-arrow-down-circle me-1"></i>TOTAL DÉBITOS</h6>
-                            <h2 class="mb-0" id="lblDebitos">0.00</h2>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card text-white bg-danger card-shadow text-center py-3">
-                            <h6 class="mb-1"><i class="bi bi-arrow-up-circle me-1"></i>TOTAL CRÉDITOS</h6>
-                            <h2 class="mb-0" id="lblCreditos">0.00</h2>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card text-white bg-secondary card-shadow text-center py-3" id="cardDiferencia">
-                            <h6 class="mb-1"><i class="bi bi-dash-square me-1"></i>DIFERENCIA GLOBAL</h6>
-                            <h2 class="mb-0" id="lblDiferencia">0.00</h2>
+                <!-- Tarjeta 1: Conciliador -->
+                <div class="col-md-6">
+                    <div class="card tool-card h-100 border-0 shadow-lg">
+                        <div class="card-body p-5 text-center">
+                            <div class="icon-wrapper bg-success bg-gradient mb-4">
+                                <i class="bi bi-calculator-fill"></i>
+                            </div>
+                            <h3 class="card-title fw-bold mb-3">Conciliador Cuenta Puente</h3>
+                            <p class="card-text text-muted mb-4">
+                                Empareja automáticamente débitos contra créditos de tu cuenta puente. 
+                                Ideal para conciliar movimientos bancarios y detectar diferencias rápidamente.
+                            </p>
+                            <ul class="list-unstyled text-start mb-4">
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Emparejamiento automático</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Detección de diferencias</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Exportación de resultados</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Procesamiento local</li>
+                            </ul>
+                            <a href="conciliador.html" class="btn btn-success btn-lg w-100">
+                                <i class="bi bi-arrow-right-circle me-2"></i>Abrir Conciliador
+                            </a>
                         </div>
                     </div>
                 </div>
 
-                <!-- Tabla de Resultados -->
-                <div class="card card-shadow">
-                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <i class="bi bi-table me-2"></i>Emparejamiento Débitos vs Créditos 
-                            (<span id="lblTotalParejas">0</span> parejas)
-                        </h5>
-                        <span class="badge bg-info"><i class="bi bi-sort-down me-1"></i>Orden: Monto Ascendente</span>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0" id="tablaParejas">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Fecha Débito</th>
-                                        <th>Asiento Débito</th>
-                                        <th>Descripción Débito</th>
-                                        <th class="text-end">Monto Débito</th>
-                                        <th class="text-end">Diferencia</th>
-                                        <th class="text-end">Monto Crédito</th>
-                                        <th>Descripción Crédito</th>
-                                        <th>Asiento Crédito</th>
-                                        <th>Fecha Crédito</th>
-                                        <th class="text-center">Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbodyParejas">
-                                    <!-- Aquí JavaScript inyectará las filas -->
-                                </tbody>
-                            </table>
+                <!-- Tarjeta 2: Analizador -->
+                <div class="col-md-6">
+                    <div class="card tool-card h-100 border-0 shadow-lg">
+                        <div class="card-body p-5 text-center">
+                            <div class="icon-wrapper bg-primary bg-gradient mb-4">
+                                <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+                            </div>
+                            <h3 class="card-title fw-bold mb-3">Analizador Obra vs Proceso</h3>
+                            <p class="card-text text-muted mb-4">
+                                Compara los reportes de ejecución presupuestaria (OBRA) contra el libro mayor 
+                                (PROCESO) para identificar coincidencias y diferencias entre ambos.
+                            </p>
+                            <ul class="list-unstyled text-start mb-4">
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i>Comparación cruzada de archivos</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i>Detección de asientos especiales</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i>Exportación CSV y JSON</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill text-primary me-2"></i>Multi-proyecto dinámico</li>
+                            </ul>
+                            <a href="analizador.html" class="btn btn-primary btn-lg w-100">
+                                <i class="bi bi-arrow-right-circle me-2"></i>Abrir Analizador
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Sección de características -->
+            <div class="row mt-5 pt-5" id="info">
+                <div class="col-12 text-center mb-4">
+                    <h2 class="fw-bold">
+                        <i class="bi bi-shield-check text-success me-2"></i>¿Por qué usar nuestro sistema?
+                    </h2>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 h-100 feature-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-shield-lock-fill fs-1 text-success mb-3"></i>
+                            <h5 class="fw-bold">100% Seguro</h5>
+                            <p class="text-muted small">
+                                Todo el procesamiento se realiza en tu navegador. 
+                                Tus archivos nunca se suben a ningún servidor.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 h-100 feature-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-lightning-charge-fill fs-1 text-warning mb-3"></i>
+                            <h5 class="fw-bold">Rápido y Eficiente</h5>
+                            <p class="text-muted small">
+                                Análisis instantáneo de archivos grandes. 
+                                Resultados en segundos, no en minutos.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 h-100 feature-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-phone-fill fs-1 text-primary mb-3"></i>
+                            <h5 class="fw-bold">Multi-dispositivo</h5>
+                            <p class="text-muted small">
+                                Funciona en cualquier dispositivo con navegador web. 
+                                Diseño responsive para móvil y escritorio.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 
     <!-- ============================================ -->
-    <!-- PIE DE PÁGINA (FOOTER) -->
+    <!-- FOOTER COMPARTIDO -->
     <!-- ============================================ -->
     <footer class="bg-dark text-white py-4 mt-auto">
         <div class="container">
             <div class="row">
-                <!-- Columna 1: Información de la empresa -->
                 <div class="col-md-4 mb-3 mb-md-0">
                     <h6 class="fw-bold text-warning">
-                        <i class="bi bi-building me-2"></i><span id="footerEmpresa"> ... </span>
+                        <i class="bi bi-building me-2"></i>Sistema Contable
                     </h6>
                     <p class="small mb-0 text-light">
-                        Sistema de Conciliación de Cuentas<br>
-                        Cuenta: <span id="footerCuenta">06-02-01-04-07</span>
+                        Herramientas profesionales de análisis contable.
                     </p>
                 </div>
-
-                <!-- Columna 2: Información técnica -->
                 <div class="col-md-4 mb-3 mb-md-0">
                     <h6 class="fw-bold text-warning">
-                        <i class="bi bi-gear-fill me-2"></i>Información Técnica
+                        <i class="bi bi-link-45deg me-2"></i>Enlaces Rápidos
                     </h6>
-                    <ul class="list-unstyled small mb-0 text-light">
-                        <li><i class="bi bi-check-circle me-1 text-success"></i>Versión: 1.0</li>
-                        <li><i class="bi bi-filetype-txt me-1 text-info"></i>Formato: TXT (Tabulado)</li>
-                        <li><i class="bi bi-shield-check me-1 text-info"></i>Procesamiento local (sin servidor)</li>
+                    <ul class="list-unstyled small mb-0">
+                        <li><a href="conciliador.html" class="text-light text-decoration-none"><i class="bi bi-chevron-right me-1"></i>Conciliador</a></li>
+                        <li><a href="analizador.html" class="text-light text-decoration-none"><i class="bi bi-chevron-right me-1"></i>Analizador</a></li>
                     </ul>
                 </div>
-
-                <!-- Columna 3: Contacto y derechos -->
                 <div class="col-md-4">
                     <h6 class="fw-bold text-warning">
-                        <i class="bi bi-clock-fill me-2"></i>Fecha y Derechos
+                        <i class="bi bi-info-circle me-2"></i>Información
                     </h6>
-                    <p class="small mb-1 text-light">
-                        <i class="bi bi-calendar3 me-1"></i>
-                        <span id="fechaFooter"></span>
-                    </p>
                     <p class="small mb-0 text-light">
-                        <i class="bi bi-c-circle me-1"></i> 2026 Todos los derechos reservados
+                        Versión 1.0 | Procesamiento local
                     </p>
                 </div>
             </div>
-
-            <!-- Línea divisoria y créditos -->
             <hr class="my-3 border-secondary">
             <div class="text-center">
                 <small class="text-light">
                     <i class="bi bi-code-slash me-1"></i>
-                    Desarrollado con <i class="bi bi-heart-fill text-danger"></i> usando HTML, CSS y JavaScript
-                    <span class="mx-2">|</span>
-                    <i class="bi bi-bootstrap-fill me-1 text-primary"></i>Bootstrap 5
+                    Desarrollado con <i class="bi bi-heart-fill text-danger"></i> usando HTML, CSS, JavaScript y Bootstrap 5
                 </small>
             </div>
         </div>
     </footer>
 
-    <!-- Botón de "Volver arriba" -->
-    <button id="btnTop" class="btn btn-primary btn-floating shadow" style="display: none; position: fixed; bottom: 30px; right: 30px; z-index: 1000; border-radius: 50%; width: 50px; height: 50px;" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+    <!-- Botón volver arriba -->
+    <button id="btnTop" class="btn btn-primary shadow" style="display: none; position: fixed; bottom: 30px; right: 30px; z-index: 1000; border-radius: 50%; width: 50px; height: 50px;" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
         <i class="bi bi-arrow-up"></i>
     </button>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Nuestro JavaScript -->
-    <script src="js/app.js"></script>
-
-    <!-- Script para mostrar la fecha actual -->
     <script>
-        // Mostrar fecha actual en el banner y footer
-        const fecha = new Date();
-        const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const fechaFormateada = fecha.toLocaleDateString('es-ES', opciones);
-        
-        document.getElementById('fechaActual').textContent = fechaFormateada;
-        document.getElementById('fechaFooter').textContent = fechaFormateada;
-
-        // Mostrar/ocultar botón "Volver arriba"
         window.addEventListener('scroll', () => {
             const btnTop = document.getElementById('btnTop');
-            if (window.scrollY > 300) {
-                btnTop.style.display = 'block';
-            } else {
-                btnTop.style.display = 'none';
-            }
+            btnTop.style.display = window.scrollY > 300 ? 'block' : 'none';
         });
     </script>
-
 </body>
 </html>
